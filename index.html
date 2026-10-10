@@ -23,7 +23,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none;-webkit-user-selec
 <script>
 "use strict";
 (() => {
-const cv = document.getElementById("c"), ctx = cv.getContext("2d");
+const cv = document.getElementById("c");
+let ctx = cv.getContext("2d"); // "let": as silhuetas do álbum são desenhadas trocando o contexto por um canvas fora da tela
 const C = {
   ink: "#2E1F47", rosa: "#FF8FBF", rosaB: "#FFD6E8", cara: "#E8A45A", caraB: "#FBE3BD",
   sky1: "#BBA6FF", sky2: "#FFD3C4", jac: "#9C7AE8", jac2: "#C6ABFF", ouro: "#FFD25A",
@@ -41,6 +42,7 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem("botinhos." + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem("botinhos." + k, JSON.stringify(v)); }catch(e){} }
 };
+const opts = Object.assign({ som: true, vib: true }, store.get("opcoes", {})); // som e vibração ligados por padrão
 function mulberry32(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const hash = i => { const s = Math.sin(i * 127.1) * 43758.5453; return s - Math.floor(s); };
 const lerp = (a, b, k) => a + (b - a) * Math.min(1, k);
@@ -55,7 +57,7 @@ function txt(s, x, y, size, fill, o = {}){
   ctx.fillStyle = fill; ctx.fillText(s, x, y);
   ctx.restore();
 }
-const vibrate = ms => { try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+const vibrate = ms => { if(!opts.vib) return; try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
 
 
 /* ---------- Tela: o jogo é sempre desenhado em paisagem ---------- */
@@ -82,7 +84,13 @@ resize();
 let ac = null, master = null, noiseBuf = null;
 function audioInit(){
   if(ac){ if(ac.state === "suspended") ac.resume(); return; }
-  try{ ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = 0.7; master.connect(ac.destination); }catch(e){ ac = null; }
+  try{ ac = new (window.AudioContext || window.webkitAudioContext)(); master = ac.createGain(); master.gain.value = opts.som ? MASTER_GAIN : 0; master.connect(ac.destination); }catch(e){ ac = null; }
+}
+const MASTER_GAIN = 0.7;
+function setOpt(k, on){
+  opts[k] = on; store.set("opcoes", opts);
+  if(k === "som" && master) master.gain.setValueAtTime(on ? MASTER_GAIN : 0, ac.currentTime);
+  if(k === "vib" && on) vibrate(40);
 }
 function env(g, t, a, d, peak){ g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
 function tone(f, t, dur, type, peak){ const o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.value = f; env(g, t, 0.01, dur, peak); o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05); }
@@ -119,6 +127,8 @@ const SFX = {
   win(){ if(!ac) return; const t = ac.currentTime; [440, 523.25, 659.25, 880, 659.25, 880, 1046.5].forEach((f, k) => tone(f, t + k * 0.11, 0.35, "triangle", 0.2)); tone(220, t, 1.2, "sine", 0.2); },
   over(){ if(!ac) return; const t = ac.currentTime; [523.25, 440, 349.23, 261.63].forEach((f, k) => tone(f, t + k * 0.16, 0.3, "triangle", 0.18)); },
   gift(){ if(!ac) return; const t = ac.currentTime; [1046.5, 1318.5, 1568, 2093].forEach((f, k) => tone(f, t + k * 0.08, 0.4, "triangle", 0.16)); },
+  count(go){ if(!ac) return; const t = ac.currentTime; if(go){ tone(880, t, 0.3, "triangle", 0.2); tone(1318.5, t + 0.04, 0.3, "triangle", 0.14); } else tone(587.33, t, 0.12, "triangle", 0.18); },
+  pause(){ if(!ac) return; const t = ac.currentTime; tone(784, t, 0.1, "sine", 0.15); tone(523.25, t + 0.07, 0.14, "sine", 0.15); },
   tango(){ // melodia original em ritmo de habanera, com timbre de caixinha de música
     if(!ac) return; const t0 = ac.currentTime + 0.05, b = 0.26, n = s => 440 * Math.pow(2, s / 12);
     const box = (f, t, d, peak) => { tone(f, t, Math.max(0.25, d * 1.6), "sine", peak); tone(f * 2.01, t, 0.15, "sine", peak * 0.35); };
@@ -433,10 +443,26 @@ const DRAW = {
     pol(-17, 3, -0.17, false); pol(16, -3, 0.12, true);
   }
 };
+// Presentes ainda fechados aparecem como silhueta. Ela é desenhada uma vez e guardada:
+// ctx.filter a cada quadro deixava o álbum muito lento com muitos presentes bloqueados.
+const SIL = {};
+function silhouette(k, size){
+  const key = k + ":" + Math.round(size) + ":" + dpr;
+  if(!SIL[key]){
+    const px = Math.ceil(size * 2 * dpr), off = document.createElement("canvas"), main = ctx;
+    off.width = off.height = px; ctx = off.getContext("2d");
+    try{
+      ctx.setTransform(dpr * size / 100, 0, 0, dpr * size / 100, px / 2, px / 2); DRAW[ITEMS[k].id]();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = "source-in"; ctx.fillStyle = "#000"; ctx.fillRect(0, 0, px, px);
+    }finally{ ctx = main; }
+    SIL[key] = off;
+  }
+  return SIL[key];
+}
 function drawItem(k, cx, cy, size, locked){
-  ctx.save(); ctx.translate(cx, cy); ctx.scale(size / 100, size / 100);
-  if(locked) ctx.filter = "brightness(0) opacity(0.22)";
-  DRAW[ITEMS[k].id]();
+  ctx.save();
+  if(locked){ ctx.globalAlpha = 0.22; ctx.drawImage(silhouette(k, size), cx - size, cy - size, size * 2, size * 2); }
+  else { ctx.translate(cx, cy); ctx.scale(size / 100, size / 100); DRAW[ITEMS[k].id](); }
   ctx.restore();
 }
 function button(id, label, x, y, w, h, fill, color){
@@ -943,6 +969,8 @@ function ambDraw(){
 let state = "title", stateT = 0, shake = 0, meetBurst = false;
 let gaps = [], lanes = [], hearts = 3, kisses = 0, syncs = 0, taps = [0, 0], crashes = 0, tPlay = 0, lastTap = [-1, -1];
 let parts = [], result = null, detail = -1, giftQueue = [], giftT = 0, giftOpened = false, yayPlayed = false;
+let countN = 0, confirmReset = false, confirmAt = 0, replayOpened = false;
+const COUNT_STEP = 0.55; // contagem 3, 2, 1 antes de nadar
 let N = 14, GAP0 = 0.44, SHRINK = 0.07, STAR_TIME = 30;
 let collected = store.get("linha", []);
 let prog = store.get("progresso", null);
@@ -963,7 +991,13 @@ function startPhase(p){
   layout(); STAR_TIME = Math.round((N * SP + LW) / V * 1.25);
   ambInit(); reset();
 }
-function setState(s){ state = s; stateT = 0; if(s === "meet") meetBurst = false; }
+function setState(s){ state = s; stateT = 0; if(s === "meet") meetBurst = false; if(s === "count") countN = 0; if(s === "replay") replayOpened = false; if(s === "opcoes") confirmReset = false; }
+function resetJourney(){ // apaga fases, estrelas e álbum; volta para Salvador
+  prog = { stars: PHASES.map(() => 0), best: PHASES.map(() => null), unlocked: 1 };
+  collected = [];
+  store.set("progresso", prog); store.set("linha", collected);
+  startPhase(0);
+}
 const gapH = k => H * (GAP0 - SHRINK * Math.min(1, k / N));
 const sx = (L, lx) => L.i === 0 ? lx : W - lx;
 
@@ -1051,20 +1085,66 @@ function goFull(){
 }
 let wakeLock = null;
 async function wake(){ try{ if(!wakeLock && navigator.wakeLock){ wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } }catch(e){} }
-document.addEventListener("visibilitychange", () => { if(!document.hidden && state === "play") wake(); });
+// Sair do app (ligação, notificação, trocar de app) pausa a fase
+document.addEventListener("visibilitychange", () => { if(document.hidden) pauseGame(true); });
+
+/* ---------- Pausa ---------- */
+const playing = () => state === "play" || state === "count";
+function pauseGame(quiet){ if(!playing()) return; setState("pause"); lastTap = [-1, -1]; shake = 0; if(!quiet) SFX.pause(); }
+function resume(){ lanes.forEach(L => { if(!L.done) L.vy = Math.min(L.vy, 0); }); setState("count"); wake(); }
+
+/* ---------- Botão voltar do Android ---------- */
+// Uma entrada extra no histórico segura o "voltar": em vez de fechar o app, ele pausa ou volta uma tela.
+let backArmed = false;
+function armBack(){ if(backArmed) return; try{ history.pushState({ botinhos: 1 }, ""); backArmed = true; }catch(e){} }
+function goBack(){
+  if(playing()) pauseGame();
+  else if(state === "pause") resume();
+  else if(state === "intro" || state === "over") setState("map");
+  else if(state === "map" || state === "album") setState("title");
+  else if(state === "item") setState("album");
+  else if(state === "replay") setState("item");
+  else if(state === "opcoes"){ if(confirmReset) confirmReset = false; else setState("title"); }
+  else if(state === "win" && !giftQueue.length) setState("map");
+}
+window.addEventListener("popstate", () => { backArmed = false; goBack(); if(state !== "title") armBack(); });
 
 /* ---------- Toques ---------- */
 const hit = (id, lx, ly) => { const b = BTN[id]; return !!b && lx >= b.x && lx <= b.x + b.w && ly >= b.y && ly <= b.y + b.h; };
-function play(){ reset(); setState("play"); wake(); }
+function play(){ reset(); setState("count"); wake(); }
 function onTap(lx, ly, now){
-  audioInit(); loadClips();
-  if(state !== "play" && state !== "meet") goFull();
+  audioInit(); loadClips(); armBack();
+  if(state !== "play" && state !== "meet" && state !== "count") goFull();
   if(state === "title"){
     if(hit("fases", lx, ly)) setState("map");
+    else if(hit("opcoes", lx, ly)) setState("opcoes");
     else if(hit("album", lx, ly)) setState("album");
     else { startPhase(nextPhase()); setState("intro"); }
     return;
   }
+  if(state === "count"){ if(hit("pausa", lx, ly)) pauseGame(); return; }
+  if(state === "pause"){
+    if(stateT < 0.25) return;
+    if(hit("continuar", lx, ly)) resume();
+    else if(hit("reiniciar", lx, ly)) play();
+    else if(hit("fases", lx, ly)) setState("map");
+    else if(hit("som", lx, ly)) setOpt("som", !opts.som);
+    else if(hit("vib", lx, ly)) setOpt("vib", !opts.vib);
+    return;
+  }
+  if(state === "opcoes"){
+    if(confirmReset){
+      if(hit("cancelar", lx, ly)) confirmReset = false;
+      else if(hit("apagar", lx, ly) && clock - confirmAt > 0.4){ resetJourney(); setState("title"); floatText("Jornada recomeçada", W / 2, H * 0.55, C.ouro); }
+      return;
+    }
+    if(hit("voltar", lx, ly)) setState("title");
+    else if(hit("som", lx, ly)) setOpt("som", !opts.som);
+    else if(hit("vib", lx, ly)) setOpt("vib", !opts.vib);
+    else if(hit("recomecar", lx, ly)){ confirmReset = true; confirmAt = clock; }
+    return;
+  }
+  if(state === "replay"){ if(stateT > 1.2) setState("item"); return; }
   if(state === "map"){
     if(hit("voltar", lx, ly)){ setState("title"); return; }
     for(let k = 0; k < PHASES.length; k++) if(hit("fase" + k, lx, ly)){ if(k < prog.unlocked){ startPhase(k); setState("intro"); } return; }
@@ -1083,8 +1163,12 @@ function onTap(lx, ly, now){
     }
     return;
   }
-  if(state === "item"){ setState("album"); return; }
+  if(state === "item"){
+    if(hit("reabrir", lx, ly) && collected.includes(ITEMS[detail].id)) setState("replay"); else setState("album");
+    return;
+  }
   if(state === "play"){
+    if(hit("pausa", lx, ly)){ pauseGame(); return; }
     const i = lx < W / 2 ? 0 : 1, o = 1 - i;
     if(lanes[i].done) return;
     taps[i]++; flap(i);
@@ -1119,6 +1203,7 @@ window.addEventListener("keydown", e => {
   const k = e.key.toLowerCase();
   if(k === "a" || k === "arrowleft") onTap(W * 0.25, H / 2, performance.now());
   else if(k === "l" || k === "arrowright") onTap(W * 0.75, H / 2, performance.now());
+  else if(k === "escape" || k === "p"){ if(playing()) pauseGame(); else if(state === "pause") resume(); }
 });
 
 /* ---------- Desenho ---------- */
@@ -1174,6 +1259,56 @@ function drawHUD(){
     ctx.fillStyle = k < hearts ? C.red : "rgba(255,255,255,0.3)"; ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 3; ctx.stroke();
   }
   txt("beijinhos " + (kisses % KISSES_PER_HEART) + "/" + KISSES_PER_HEART, W / 2, by + bh + 46, 15, "#FFFFFF", { lw: 0.3 });
+  if(playing()){ // pausa: à esquerda da barra, longe de onde os dedos costumam tocar
+    const s = 36, px = bx - s - 12, py = by - 1;
+    ctx.fillStyle = "rgba(46,31,71,0.8)"; rr(px, py, s, s, 12); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.stroke();
+    ctx.fillStyle = "#FFFFFF"; rr(px + s * 0.31, py + s * 0.27, s * 0.13, s * 0.46, 2); ctx.fill(); rr(px + s * 0.56, py + s * 0.27, s * 0.13, s * 0.46, 2); ctx.fill();
+    BTN.pausa = { x: px - 8, y: 0, w: s + 16, h: py + s + 8 };
+  }
+}
+function drawCount(){
+  const n = 3 - Math.floor(stateT / COUNT_STEP), f = (stateT % COUNT_STEP) / COUNT_STEP;
+  if(n < 1) return;
+  const s = H * 0.26 * (1 + Math.max(0, 0.35 - f) * 1.2);
+  ctx.save(); ctx.globalAlpha = 1 - Math.max(0, f - 0.75) * 3;
+  txt(String(n), W / 2, H * 0.5, s, C.ouro, { lw: 0.2 });
+  ctx.restore();
+  txt("Preparem os dedos", W / 2, H * 0.72, H * 0.05, "#FFFFFF");
+}
+function toggles(cy, h){ // som e vibração, usados na pausa e nas opções
+  buttonsRow([
+    { id: "som", label: "Som: " + (opts.som ? "ligado" : "desligado"), w: 170, fill: opts.som ? C.green : "#CFC4E3" },
+    { id: "vib", label: "Vibração: " + (opts.vib ? "ligada" : "desligada"), w: 200, fill: opts.vib ? C.green : "#CFC4E3" }
+  ], cy, h);
+}
+function drawPause(){
+  dim(0.5);
+  const c = card(Math.min(W * 0.72, 540), H * 0.8);
+  txt("Pausa", W / 2, c.y + c.h * 0.13, H * 0.085, C.rosa);
+  txt("Fase " + (phase + 1) + ": " + PHASES[phase].nome, W / 2, c.y + c.h * 0.28, H * 0.045, C.ink, { stroke: false, w: 700 });
+  const p = Math.round((lanes[0].passed + lanes[1].passed) / (2 * N) * 100);
+  txt(p + "% do caminho     corações " + hearts + " de 3", W / 2, c.y + c.h * 0.38, H * 0.038, "#7A6A96", { stroke: false, w: 600 });
+  buttonsRow([{ id: "fases", label: "Fases", w: 100 }, { id: "reiniciar", label: "Reiniciar fase", w: 170 }, { id: "continuar", label: "Continuar", w: 150, fill: C.ouro }], c.y + c.h * 0.58, 44);
+  toggles(c.y + c.h * 0.82, 34);
+}
+function drawOptions(){
+  ctx.fillStyle = "rgba(46,31,71,0.94)"; ctx.fillRect(0, 0, W, H);
+  txt("Opções", W / 2, 34, 26, C.rosa);
+  button("voltar", "Voltar", 16, 14, 96, 38, C.card, C.ink);
+  toggles(H * 0.34, 42);
+  const total = prog.stars.reduce((a, b) => a + b, 0), abertas = Math.min(prog.unlocked, PHASES.length);
+  const pl = (n, um, varios) => n + " " + (n === 1 ? um : varios);
+  txt(pl(total, "estrela", "estrelas") + ", " + collected.length + " de " + ITEMS.length + " presentes, " + pl(abertas, "fase aberta", "fases abertas"), W / 2, H * 0.56, Math.min(15, H * 0.04), "#FFFFFF", { stroke: false, w: 600 });
+  button("recomecar", "Recomeçar a jornada", W / 2 - 130, H * 0.63, 260, 44, C.red, "#FFFFFF");
+  txt("Apaga fases, estrelas e o álbum para jogar tudo de novo", W / 2, H * 0.63 + 64, Math.min(13, H * 0.036), "#CFC4E3", { stroke: false, w: 600 });
+  if(confirmReset){
+    for(const k in BTN) delete BTN[k];
+    dim(0.6);
+    const c = card(Math.min(W * 0.66, 480), H * 0.62);
+    txt("Apagar tudo?", W / 2, c.y + c.h * 0.18, H * 0.075, C.rosa);
+    wrapText("As fases, as estrelas e os " + ITEMS.length + " presentes voltam ao começo. Não dá para desfazer.", W / 2, c.y + c.h * 0.43, c.w - 60, Math.min(18, H * 0.048), C.ink);
+    buttonsRow([{ id: "cancelar", label: "Cancelar", w: 140, fill: C.ouro }, { id: "apagar", label: "Apagar tudo", w: 160, fill: C.red }], c.y + c.h * 0.74, 44);
+  }
 }
 function dim(a){ ctx.fillStyle = `rgba(46,31,71,${a})`; ctx.fillRect(0, 0, W, H); }
 function card(w, h, y){ const x = W / 2 - w / 2; y = y == null ? H / 2 - h / 2 : y; ctx.fillStyle = C.card; rr(x, y, w, h, 26); ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = C.ink; ctx.stroke(); return { x, y, w, h }; }
@@ -1197,6 +1332,7 @@ function drawTitle(){
   txt("toque deste lado", W * 0.75, H * 0.75, H * 0.048, "#FFFFFF");
   txt("Toquem juntos: 5 beijinhos devolvem um coração; cada 2 estrelas novas abrem um presente", W / 2, H * 0.86, Math.min(H * 0.045, W * 0.022), C.ouro);
   button("fases", "Fases", 16, 14, 104, 40, C.card, C.ink);
+  button("opcoes", "Opções", 130, 14, 112, 40, C.card, C.ink);
   button("album", "Álbum " + collected.length + "/" + ITEMS.length, W - 152, 14, 136, 40, C.card, C.ink);
   if(pulse()) txt("Toque para jogar", W / 2, H * 0.955, H * 0.05, "#FFFFFF");
 }
@@ -1277,7 +1413,7 @@ function drawPresent(s, open){ // pacote de presente; open de 0 a 1 levanta a ta
   bow(0, -h * 0.26, w * 0.12, C.ouro);
   ctx.restore();
 }
-function drawGiftReveal(k, t){
+function drawGiftReveal(k, t, hint){
   dim(Math.min(0.9, 0.2 + t * 1.4));
   const cx = W / 2, cy = H * 0.52, s = Math.min(H * 0.34, 160), open = Math.max(0, Math.min(1, (t - 0.7) / 0.35));
   if(open > 0){
@@ -1290,7 +1426,7 @@ function drawGiftReveal(k, t){
   if(open > 0){ const pop = 1 + Math.sin(open * Math.PI) * 0.18; drawItem(k, cx, cy - s * 0.15 - open * s * 0.1, s * 1.15 * open * pop, false); }
   txt("Presente!", cx, H * 0.11, H * 0.085, C.rosa);
   if(t > 0.9) txt((k + 1) + ". " + ITEMS[k].nome, cx, H * 0.86, H * 0.06, "#FFFFFF");
-  if(t > 1.2 && pulse()) txt("Toque para guardar no álbum", cx, H * 0.95, H * 0.042, C.ouro, { lw: 0.28 });
+  if(t > 1.2 && pulse()) txt(hint || "Toque para guardar no álbum", cx, H * 0.95, H * 0.042, C.ouro, { lw: 0.28 });
 }
 function drawAlbum(){
   ctx.fillStyle = "rgba(46,31,71,0.94)"; ctx.fillRect(0, 0, W, H);
@@ -1313,14 +1449,29 @@ function drawDetail(){
   drawAlbum(); dim(0.55);
   const it = ITEMS[detail], have = collected.includes(it.id);
   const c = card(Math.min(W * 0.7, 560), H * 0.88);
-  drawItem(detail, W / 2, c.y + c.h * 0.43, Math.min(c.w * 0.62, c.h * 0.64), !have);
-  txt(have ? it.nome : "Ainda não ganharam", W / 2, c.y + c.h * 0.83, Math.min(24, H * 0.06), C.rosa);
-  txt("Presente " + (detail + 1) + " de " + ITEMS.length, W / 2, c.y + c.h * 0.93, Math.min(15, H * 0.04), C.ink, { stroke: false, w: 600 });
+  if(have){
+    drawItem(detail, W / 2, c.y + c.h * 0.37, Math.min(c.w * 0.5, c.h * 0.48), false);
+    txt(it.nome, W / 2, c.y + c.h * 0.7, Math.min(24, H * 0.06), C.rosa);
+    txt("Presente " + (detail + 1) + " de " + ITEMS.length, W / 2, c.y + c.h * 0.78, Math.min(15, H * 0.04), C.ink, { stroke: false, w: 600 });
+    button("reabrir", "Abrir de novo", W / 2 - 85, c.y + c.h * 0.84, 170, 38, C.ouro, C.ink);
+  }else{
+    drawItem(detail, W / 2, c.y + c.h * 0.43, Math.min(c.w * 0.62, c.h * 0.64), true);
+    txt("Ainda não ganharam", W / 2, c.y + c.h * 0.83, Math.min(24, H * 0.06), C.rosa);
+    txt("Presente " + (detail + 1) + " de " + ITEMS.length, W / 2, c.y + c.h * 0.93, Math.min(15, H * 0.04), C.ink, { stroke: false, w: 600 });
+  }
 }
+function drawReplay(){ ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H); drawGiftReveal(detail, stateT, "Toque para voltar"); }
 
 /* ---------- Laço principal ---------- */
 function update(dt){
+  if(state === "pause") return; // tudo congelado
   ambUpdate(dt);
+  if(state === "replay" && !replayOpened && stateT > 0.7){ replayOpened = true; SFX.gift(); vibrate([20, 40, 20]); }
+  if(state === "count"){
+    const n = Math.floor(stateT / COUNT_STEP);
+    if(n >= 3){ setState("play"); SFX.count(true); floatText("Vai!", W / 2, H * 0.5, C.ouro); }
+    else if(n >= countN){ countN = n + 1; SFX.count(false); }
+  }
   if(state === "win"){
     if(result && result.n === 3 && !yayPlayed && stateT > 0.8){ yayPlayed = true; playClip("yay"); }
     if(showingGift()){ giftT += dt; if(!giftOpened && giftT > 0.7){ giftOpened = true; SFX.gift(); vibrate([20, 40, 20]); } }
@@ -1336,6 +1487,8 @@ function update(dt){
     });
     if(stateT > 0.8 && !meetBurst){ meetBurst = true; heartBurst(); SFX.win(); vibrate([30, 60, 30]); }
     if(stateT > 2.6){ finish(); setState("win"); }
+  }else if(state === "count"){
+    lanes.forEach(L => { L.sq = Math.max(0, L.sq - dt * 5); }); // parados esperando a largada
   }else{
     lanes.forEach(L => {
       L.scroll += V * dt * 0.25;
@@ -1358,6 +1511,10 @@ function draw(){
   ambDraw();
   drawBotos(); drawParts();
   if(state === "play" || state === "meet") drawHUD();
+  else if(state === "count"){ drawHUD(); drawCount(); }
+  else if(state === "pause"){ drawHUD(); for(const k in BTN) delete BTN[k]; drawPause(); }
+  else if(state === "opcoes") drawOptions();
+  else if(state === "replay") drawReplay();
   else if(state === "title") drawTitle();
   else if(state === "map") drawMap();
   else if(state === "intro") drawIntro();
@@ -1376,7 +1533,7 @@ function frame(now){
 startPhase(nextPhase());
 requestAnimationFrame(frame);
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
-window.BT = { get state(){ return state; }, get lanes(){ return lanes; }, get prog(){ return prog; }, get gifts(){ return giftQueue; }, get collected(){ return collected; }, get clips(){ return Object.keys(CLIPS).filter(k => CLIPS[k]); }, setState, startPhase, reset, finish, onTap, play, setResult: (crashesN, syncRate, time) => { crashes = crashesN; taps = [10, 10]; syncs = Math.round(syncRate * 10); tPlay = time; } };
+window.BT = { get btn(){ return BTN; }, get opts(){ return opts; }, get master(){ return master ? master.gain.value : null; }, get hearts(){ return hearts; }, get tPlay(){ return tPlay; }, get state(){ return state; }, get lanes(){ return lanes; }, get prog(){ return prog; }, get gifts(){ return giftQueue; }, get collected(){ return collected; }, get clips(){ return Object.keys(CLIPS).filter(k => CLIPS[k]); }, setState, startPhase, reset, finish, onTap, play, setResult: (crashesN, syncRate, time) => { crashes = crashesN; taps = [10, 10]; syncs = Math.round(syncRate * 10); tPlay = time; } };
 })();
 </script>
 </body>

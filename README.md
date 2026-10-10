@@ -10,6 +10,14 @@ Jogo para duas pessoas no mesmo celular. Um boto rosa e um boto caramelo nadam p
 - Estrelas por fase: nenhuma batida, sincronia de 60% ou mais e tempo dentro do limite.
 - A cada 2 estrelas novas (contando a melhor marca de cada fase), um presente é aberto na tela de vitória, na ordem da linha do tempo. As 30 estrelas completam os 15 presentes do álbum.
 - Sons gravados: "Gurl" quando os corações acabam e "Yay" nas 3 estrelas (pasta `sons/`, já cortados e com volume igualado).
+- Cada fase começa com uma contagem 3, 2, 1, que também aparece ao sair da pausa.
+
+## Pausa e opções
+
+- O botão ⏸ ao lado da barra de progresso pausa a fase: Continuar, Reiniciar fase ou Fases.
+- A fase também pausa sozinha quando o app vai para segundo plano (ligação, notificação) e com o botão voltar do Android, que antes fechava o jogo.
+- Em **Opções**, na tela inicial: som e vibração liga/desliga e **Recomeçar a jornada**, que apaga fases, estrelas e álbum depois de uma confirmação.
+- No álbum, cada presente já ganho tem **Abrir de novo**, que repete a animação da caixa.
 
 ## Fases
 
