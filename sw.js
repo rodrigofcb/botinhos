@@ -1,8 +1,8 @@
 // Botinhos: service worker
 // O jogo funciona offline depois da primeira abertura. HTML: rede primeiro (para receber atualizações);
 // ícones e fontes: cache primeiro.
-const VERSION = "botinhos-v1";
-const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png"];
+const VERSION = "botinhos-v2";
+const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./sons/gurl.mp3", "./sons/yay.mp3"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -44,7 +44,7 @@ self.addEventListener("fetch", e => {
   if(req.method !== "GET") return;
   const url = new URL(req.url);
   if(url.origin === self.location.origin){
-    e.respondWith(/\.(png|webmanifest)$/.test(url.pathname) ? cacheFirst(req) : networkFirst(req));
+    e.respondWith(/\.(png|webmanifest|mp3)$/.test(url.pathname) ? cacheFirst(req) : networkFirst(req));
     return;
   }
   if(url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") e.respondWith(cacheFirst(req));

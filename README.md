@@ -7,8 +7,9 @@ Jogo para duas pessoas no mesmo celular. Um boto rosa e um boto caramelo nadam p
 - Celular na horizontal; cada pessoa toca no seu lado para o seu boto nadar para cima.
 - Bater num obstáculo custa um coração (são três por fase, divididos entre os dois).
 - Tocar ao mesmo tempo vale um beijinho; 5 beijinhos devolvem um coração.
-- 3 toques juntos seguidos dão um presente para o álbum, na ordem da linha do tempo; um presente novo por partida.
-- Estrelas por fase: nenhuma batida, sincronia de 25% ou mais e tempo dentro do limite.
+- Estrelas por fase: nenhuma batida, sincronia de 60% ou mais e tempo dentro do limite.
+- A cada 2 estrelas novas (contando a melhor marca de cada fase), um presente é aberto na tela de vitória, na ordem da linha do tempo. As 30 estrelas completam os 15 presentes do álbum.
+- Sons gravados: "Gurl" quando os corações acabam e "Yay" nas 3 estrelas (pasta `sons/`, já cortados e com volume igualado).
 
 ## Fases
 
