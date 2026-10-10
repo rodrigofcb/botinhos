@@ -50,14 +50,105 @@ function addRR(x, y, w, h, r){ r = Math.min(r, w / 2, h / 2); ctx.moveTo(x + r, 
 function rr(x, y, w, h, r){ ctx.beginPath(); addRR(x, y, w, h, r); }
 function heartPath(x, y, s){ ctx.beginPath(); ctx.moveTo(x, y + s * 0.9); ctx.bezierCurveTo(x - s * 1.25, y + s * 0.05, x - s * 0.6, y - s * 0.95, x, y - s * 0.3); ctx.bezierCurveTo(x + s * 0.6, y - s * 0.95, x + s * 1.25, y + s * 0.05, x, y + s * 0.9); ctx.closePath(); }
 function starPath(x, y, s){ ctx.beginPath(); for(let k = 0; k < 10; k++){ const a = -Math.PI / 2 + k * Math.PI / 5, rr2 = k % 2 ? s * 0.45 : s; ctx.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2); } ctx.closePath(); }
-function txt(s, x, y, size, fill, o = {}){
+function txt(s, x, y, size, fill, o = {}){ // o.max: largura máxima; a letra diminui até caber
   ctx.save();
-  ctx.font = `${o.w || 800} ${size}px ${FONT}`; ctx.textAlign = o.align || "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+  ctx.font = `${o.w || 800} ${size}px ${FONT}`;
+  if(o.max){
+    const mw = ctx.measureText(s).width + (o.stroke !== false ? size * (o.lw || 0.24) : 0);
+    if(mw > o.max){ size *= o.max / mw; ctx.font = `${o.w || 800} ${size}px ${FONT}`; }
+  }
+  ctx.textAlign = o.align || "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
   if(o.stroke !== false){ ctx.lineWidth = size * (o.lw || 0.24); ctx.strokeStyle = o.stroke || C.ink; ctx.strokeText(s, x, y); }
   ctx.fillStyle = fill; ctx.fillText(s, x, y);
   ctx.restore();
 }
 const vibrate = ms => { if(!opts.vib) return; try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+const pl = (n, um, varios) => n + " " + (n === 1 ? um : varios);
+
+/* ---------- Idiomas: português (Brasil) e espanhol (Argentina) ---------- */
+const STR = {
+  pt: {
+    fase: "Fase", fases: "Fases", opcoes: "Opções", album: "Álbum", voltar: "Voltar",
+    rosa: "Rosa", caramelo: "Caramelo", ladoToque: "toque deste lado",
+    dica: "Toquem juntos: 5 beijinhos devolvem um coração; cada 2 estrelas novas abrem um presente",
+    tocarJogar: "Toque para jogar", tocarComecar: "Toque para começar",
+    estrelasDe: (n, t) => n + " de " + t + " estrelas", faseDe: (n, t) => "Fase " + n + " de " + t,
+    cheguem: "Cheguem até o meio juntos", preparem: "Preparem os dedos", vai: "Vai!",
+    beijinhos: "beijinhos", maisCoracao: "+1 coração",
+    pausa: "Pausa", caminho: (p, h) => p + "% do caminho     corações " + h + " de 3",
+    reiniciarFase: "Reiniciar fase", continuar: "Continuar",
+    som: on => "Som: " + (on ? "ligado" : "desligado"), vib: on => "Vibração: " + (on ? "ligada" : "desligada"),
+    idioma: "Idioma",
+    resumo: (e, g, f) => pl(e, "estrela", "estrelas") + ", " + g + " de " + ITEMS.length + " presentes, " + pl(f, "fase aberta", "fases abertas"),
+    recomecar: "Recomeçar a jornada", recomecarSub: "Apaga fases, estrelas e o álbum para jogar tudo de novo",
+    apagarTudoQ: "Apagar tudo?", apagarTexto: n => "As fases, as estrelas e os " + n + " presentes voltam ao começo. Não dá para desfazer.",
+    cancelar: "Cancelar", apagarTudo: "Apagar tudo", recomecada: "Jornada recomeçada",
+    acabaram: "Os corações acabaram", faltavam: p => "Faltavam " + p + "% para eles se encontrarem", tentar: "Tentar de novo",
+    fimViagem: "Fim da viagem!", encontraram: "Se encontraram!",
+    semBatida: "nenhuma batida", sincronia: "sincronia", ate: s => "até " + s + " s",
+    stats: (t, b, s) => "Tempo " + t + " s     Batidas " + b + "     Sincronia " + s + "%",
+    recorde: "Novo recorde!", albumCompleto: "Álbum completo!",
+    falta: n => n === 1 ? "Falta 1 estrela nova para o próximo presente" : "Faltam " + n + " estrelas novas para o próximo presente",
+    todasCidades: "Os botinhos se encontraram em todas as cidades.",
+    repetir: "Repetir", proxima: "Próxima fase",
+    presente: "Presente!", guardar: "Toque para guardar no álbum", tocarVoltar: "Toque para voltar",
+    albumTitulo: "Álbum dos Botinhos", presentesDe: (n, t) => n + " de " + t + " presentes",
+    presenteN: n => "Presente " + n, presenteDe: (n, t) => "Presente " + n + " de " + t,
+    abrirDeNovo: "Abrir de novo", aindaNao: "Ainda não ganharam"
+  },
+  es: { // español rioplatense: "tocá", "toquen", anteojos, medias
+    fase: "Nivel", fases: "Niveles", opcoes: "Opciones", album: "Álbum", voltar: "Volver",
+    rosa: "Rosa", caramelo: "Caramelo", ladoToque: "tocá de este lado",
+    dica: "Toquen juntos: 5 besitos devuelven un corazón; cada 2 estrellas nuevas abren un regalo",
+    tocarJogar: "Tocá para jugar", tocarComecar: "Tocá para empezar",
+    estrelasDe: (n, t) => n + " de " + t + " estrellas", faseDe: (n, t) => "Nivel " + n + " de " + t,
+    cheguem: "Lleguen juntos hasta el medio", preparem: "Preparen los dedos", vai: "¡Ya!",
+    beijinhos: "besitos", maisCoracao: "+1 corazón",
+    pausa: "Pausa", caminho: (p, h) => p + "% del camino     corazones " + h + " de 3",
+    reiniciarFase: "Reiniciar nivel", continuar: "Seguir",
+    som: on => "Sonido: " + (on ? "activado" : "desactivado"), vib: on => "Vibración: " + (on ? "activada" : "desactivada"),
+    idioma: "Idioma",
+    resumo: (e, g, f) => pl(e, "estrella", "estrellas") + ", " + g + " de " + ITEMS.length + " regalos, " + pl(f, "nivel abierto", "niveles abiertos"),
+    recomecar: "Empezar el viaje de nuevo", recomecarSub: "Borra niveles, estrellas y el álbum para jugar todo de nuevo",
+    apagarTudoQ: "¿Borrar todo?", apagarTexto: n => "Los niveles, las estrellas y los " + n + " regalos vuelven al principio. No se puede deshacer.",
+    cancelar: "Cancelar", apagarTudo: "Borrar todo", recomecada: "¡El viaje empieza de nuevo!",
+    acabaram: "Se acabaron los corazones", faltavam: p => "Les faltaba un " + p + "% para encontrarse", tentar: "Intentar de nuevo",
+    fimViagem: "¡Fin del viaje!", encontraram: "¡Se encontraron!",
+    semBatida: "sin choques", sincronia: "sincronía", ate: s => "hasta " + s + " s",
+    stats: (t, b, s) => "Tiempo " + t + " s     Choques " + b + "     Sincronía " + s + "%",
+    recorde: "¡Nuevo récord!", albumCompleto: "¡Álbum completo!",
+    falta: n => n === 1 ? "Falta 1 estrella nueva para el próximo regalo" : "Faltan " + n + " estrellas nuevas para el próximo regalo",
+    todasCidades: "Los botitos se encontraron en todas las ciudades.",
+    repetir: "Repetir", proxima: "Próximo nivel",
+    presente: "¡Regalo!", guardar: "Tocá para guardarlo en el álbum", tocarVoltar: "Tocá para volver",
+    albumTitulo: "Álbum de los Botinhos", presentesDe: (n, t) => n + " de " + t + " regalos",
+    presenteN: n => "Regalo " + n, presenteDe: (n, t) => "Regalo " + n + " de " + t,
+    abrirDeNovo: "Abrir de nuevo", aindaNao: "Todavía no lo ganaron",
+    phases: [ // nome, subtítulo, momento do dia
+      ["Salvador", "Mañana sobre la Bahía de Todos los Santos", "mañana"],
+      ["Maranhão", "Mediodía en los Lençóis", "mediodía"],
+      ["Amazonia", "Lluvia entre las copas de los árboles", "lluvia"],
+      ["San Pablo", "Garúa en la Avenida Paulista", "garúa"],
+      ["Ciudad de México", "Tarde dorada en el lago de Texcoco", "tarde"],
+      ["Buenos Aires", "Primavera de los jacarandás", "primavera"],
+      ["Río de Janeiro", "Atardecer en Copacabana", "atardecer"],
+      ["Salvador", "Noche de luna en el Farol da Barra", "noche de luna"],
+      ["San Pablo", "Noche de neón en la Marginal", "noche de neón"],
+      ["Cataratas del Iguazú", "Amanecer entre Brasil y Argentina", "amanecer"]
+    ],
+    items: ["Llavero de llama", "Valijita de perfumes", "Fernet con coca", "Polaroids de los botitos", "Cajita musical de tango",
+      "Primer ramo", "Botellita térmica", "Shortcito de playa", "Chocolates con mensaje", "Anteojos de lentes rojos",
+      "Medias de arcoíris", "Entradas para el Xou da Xuxa", "Segundo ramo", "Bandeja de panes", "Disfraz de unicornio"]
+  }
+};
+let lang = opts.lang === "es" || opts.lang === "pt" ? opts.lang : (/^es\b/i.test(navigator.language || "") ? "es" : "pt");
+function tr(k, ...a){ const v = STR[lang][k] !== undefined ? STR[lang][k] : STR.pt[k]; return typeof v === "function" ? v(...a) : v; }
+const phName = k => lang === "es" ? STR.es.phases[k][0] : PHASES[k].nome;
+const phSub = k => lang === "es" ? STR.es.phases[k][1] : PHASES[k].sub;
+const phCurto = k => lang === "es" ? STR.es.phases[k][2] : PHASES[k].curto;
+const itName = k => lang === "es" ? STR.es.items[k] : ITEMS[k].nome;
+function setLang(l){ lang = l; opts.lang = l; store.set("opcoes", opts); document.documentElement.lang = l === "es" ? "es-AR" : "pt-BR"; }
+document.documentElement.lang = lang === "es" ? "es-AR" : "pt-BR";
 
 
 /* ---------- Tela: o jogo é sempre desenhado em paisagem ---------- */
@@ -467,19 +558,55 @@ function drawItem(k, cx, cy, size, locked){
 }
 function button(id, label, x, y, w, h, fill, color){
   ctx.fillStyle = fill; rr(x, y, w, h, h / 2); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = C.ink; ctx.stroke();
-  txt(label, x + w / 2, y + h / 2 + 1, h * 0.46, color, { stroke: false });
+  txt(label, x + w / 2, y + h / 2 + 1, h * 0.46, color, { stroke: false, max: w - h * 0.5 });
   BTN[id] = { x, y, w, h };
 }
-function wrapText(s, x, y, maxW, size, color){
+function labelW(label, h, minW){ ctx.save(); ctx.font = `800 ${h * 0.46}px ${FONT}`; const w = ctx.measureText(label).width; ctx.restore(); return Math.max(minW || 0, w + h * 0.9); }
+function btnAuto(id, label, x, y, h, minW){ const w = labelW(label, h, minW); button(id, label, x, y, w, h, C.card, C.ink); return w; }
+// Bandeirinhas para escolher o idioma: Brasil (português) e Argentina (espanhol)
+function flag(code, x, y, w, h, on){
+  ctx.save(); ctx.globalAlpha = on ? 1 : 0.45;
+  rr(x, y, w, h, h * 0.18); ctx.save(); ctx.clip();
+  if(code === "pt"){
+    ctx.fillStyle = "#1FA34A"; ctx.fillRect(x, y, w, h);
+    poly([[x + w / 2, y + h * 0.12], [x + w * 0.9, y + h / 2], [x + w / 2, y + h * 0.88], [x + w * 0.1, y + h / 2]]); ctx.fillStyle = "#FFDA2E"; ctx.fill();
+    const cx = x + w / 2, cy = y + h / 2, r = h * 0.24;
+    circ(cx, cy, r); ctx.fillStyle = "#24409A"; ctx.fill(); ctx.save(); ctx.clip();
+    ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = Math.max(1.2, h * 0.07); ctx.beginPath(); ctx.arc(cx - r * 0.3, cy + r * 1.9, r * 2.05, -Math.PI * 0.75, -Math.PI * 0.25); ctx.stroke();
+    ctx.restore();
+  }else{
+    ctx.fillStyle = "#74ACDF"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(x, y + h / 3, w, h / 3);
+    const cx = x + w / 2, cy = y + h / 2, r = h * 0.1;
+    ctx.strokeStyle = "#F6B40E"; ctx.lineWidth = Math.max(1, h * 0.04);
+    for(let k = 0; k < 16; k++){ const a = k * Math.PI / 8; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.lineTo(cx + Math.cos(a) * r * 1.65, cy + Math.sin(a) * r * 1.65); ctx.stroke(); }
+    circ(cx, cy, r); ctx.fillStyle = "#F6B40E"; ctx.fill();
+  }
+  ctx.restore();
+  rr(x, y, w, h, h * 0.18); ctx.lineWidth = 2.5; ctx.strokeStyle = C.ink; ctx.stroke();
+  if(on){ rr(x - 3.5, y - 3.5, w + 7, h + 7, h * 0.24); ctx.lineWidth = 3; ctx.strokeStyle = "#FFFFFF"; ctx.stroke(); }
+  ctx.restore();
+}
+const flagsW = h => h * 1.45 * 2 + 12;
+function flagsPair(x, y, h){
+  const w = h * 1.45;
+  [["pt", x], ["es", x + w + 12]].forEach(([code, fx]) => { flag(code, fx, y, w, h, lang === code); BTN["lang_" + code] = { x: fx - 6, y: y - 6, w: w + 12, h: h + 12 }; });
+}
+function wrapText(s, x, y, maxW, size, color, o = {}){ // quebra em até 2 linhas e diminui a letra até caber
+  const wt = o.w || 700, stroke = o.stroke === true ? undefined : (o.stroke || false);
+  const extra = stroke === false ? 0 : (o.lw || 0.24);
   let lines;
   ctx.save();
-  for(; size >= 8; size -= 0.5){ // diminui a letra até caber em duas linhas
-    ctx.font = `700 ${size}px ${FONT}`; lines = [""];
-    s.split(" ").forEach(w => { const t = lines[lines.length - 1] ? lines[lines.length - 1] + " " + w : w; if(ctx.measureText(t).width > maxW && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; });
+  for(; size >= 8; size -= 0.5){
+    ctx.font = `${wt} ${size}px ${FONT}`; lines = [""];
+    const lim = maxW - size * extra;
+    s.split(" ").forEach(w => { const t = lines[lines.length - 1] ? lines[lines.length - 1] + " " + w : w; if(ctx.measureText(t).width > lim && lines[lines.length - 1]) lines.push(w); else lines[lines.length - 1] = t; });
     if(lines.length <= 2) break;
   }
   ctx.restore();
-  lines.slice(0, 2).forEach((l, i) => txt(l, x, y + (i - (Math.min(lines.length, 2) - 1) / 2) * size * 1.1, size, color, { stroke: false, w: 700 }));
+  if(lines.length > 2) lines = [lines[0], lines.slice(1).join(" ")];
+  const n = Math.min(lines.length, 2);
+  lines.slice(0, 2).forEach((l, i) => txt(l, x, y + (i - (n - 1) / 2) * size * 1.15, size, color, { stroke, w: wt, lw: o.lw, max: maxW }));
 }
 
 
@@ -1116,7 +1243,9 @@ function onTap(lx, ly, now){
   audioInit(); loadClips(); armBack();
   if(state !== "play" && state !== "meet" && state !== "count") goFull();
   if(state === "title"){
-    if(hit("fases", lx, ly)) setState("map");
+    if(hit("lang_pt", lx, ly)) setLang("pt");
+    else if(hit("lang_es", lx, ly)) setLang("es");
+    else if(hit("fases", lx, ly)) setState("map");
     else if(hit("opcoes", lx, ly)) setState("opcoes");
     else if(hit("album", lx, ly)) setState("album");
     else { startPhase(nextPhase()); setState("intro"); }
@@ -1135,10 +1264,12 @@ function onTap(lx, ly, now){
   if(state === "opcoes"){
     if(confirmReset){
       if(hit("cancelar", lx, ly)) confirmReset = false;
-      else if(hit("apagar", lx, ly) && clock - confirmAt > 0.4){ resetJourney(); setState("title"); floatText("Jornada recomeçada", W / 2, H * 0.55, C.ouro); }
+      else if(hit("apagar", lx, ly) && clock - confirmAt > 0.4){ resetJourney(); setState("title"); floatText(tr("recomecada"), W / 2, H * 0.55, C.ouro); }
       return;
     }
     if(hit("voltar", lx, ly)) setState("title");
+    else if(hit("lang_pt", lx, ly)) setLang("pt");
+    else if(hit("lang_es", lx, ly)) setLang("es");
     else if(hit("som", lx, ly)) setOpt("som", !opts.som);
     else if(hit("vib", lx, ly)) setOpt("vib", !opts.vib);
     else if(hit("recomecar", lx, ly)){ confirmReset = true; confirmAt = clock; }
@@ -1174,7 +1305,7 @@ function onTap(lx, ly, now){
     taps[i]++; flap(i);
     if(lastTap[o] >= 0 && now - lastTap[o] <= SYNC_MS && !lanes[o].done){
       lastTap[o] = -1; lastTap[i] = -1; syncs++; kisses++; SFX.chord(); kissFx();
-      if(kisses % KISSES_PER_HEART === 0 && hearts < 3){ hearts++; SFX.heartBack(); floatText("+1 coração", W / 2, H * 0.34, C.red); }
+      if(kisses % KISSES_PER_HEART === 0 && hearts < 3){ hearts++; SFX.heartBack(); floatText(tr("maisCoracao"), W / 2, H * 0.34, C.red); }
     }else lastTap[i] = now;
     return;
   }
@@ -1258,7 +1389,7 @@ function drawHUD(){
     heartPath(W / 2 - 28 + k * 28, by + bh + 20, 10);
     ctx.fillStyle = k < hearts ? C.red : "rgba(255,255,255,0.3)"; ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 3; ctx.stroke();
   }
-  txt("beijinhos " + (kisses % KISSES_PER_HEART) + "/" + KISSES_PER_HEART, W / 2, by + bh + 46, 15, "#FFFFFF", { lw: 0.3 });
+  txt(tr("beijinhos") + " " + (kisses % KISSES_PER_HEART) + "/" + KISSES_PER_HEART, W / 2, by + bh + 46, 15, "#FFFFFF", { lw: 0.3 });
   if(playing()){ // pausa: à esquerda da barra, longe de onde os dedos costumam tocar
     const s = 36, px = bx - s - 12, py = by - 1;
     ctx.fillStyle = "rgba(46,31,71,0.8)"; rr(px, py, s, s, 12); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.stroke();
@@ -1273,134 +1404,143 @@ function drawCount(){
   ctx.save(); ctx.globalAlpha = 1 - Math.max(0, f - 0.75) * 3;
   txt(String(n), W / 2, H * 0.5, s, C.ouro, { lw: 0.2 });
   ctx.restore();
-  txt("Preparem os dedos", W / 2, H * 0.72, H * 0.05, "#FFFFFF");
+  txt(tr("preparem"), W / 2, H * 0.72, H * 0.05, "#FFFFFF", { max: W - 40 });
 }
-function toggles(cy, h){ // som e vibração, usados na pausa e nas opções
+function toggles(cy, h, maxW){ // som e vibração, usados na pausa e nas opções
   buttonsRow([
-    { id: "som", label: "Som: " + (opts.som ? "ligado" : "desligado"), w: 170, fill: opts.som ? C.green : "#CFC4E3" },
-    { id: "vib", label: "Vibração: " + (opts.vib ? "ligada" : "desligada"), w: 200, fill: opts.vib ? C.green : "#CFC4E3" }
-  ], cy, h);
+    { id: "som", label: tr("som", opts.som), w: 150, fill: opts.som ? C.green : "#CFC4E3" },
+    { id: "vib", label: tr("vib", opts.vib), w: 170, fill: opts.vib ? C.green : "#CFC4E3" }
+  ], cy, h, maxW);
 }
 function drawPause(){
   dim(0.5);
-  const c = card(Math.min(W * 0.72, 540), H * 0.8);
-  txt("Pausa", W / 2, c.y + c.h * 0.13, H * 0.085, C.rosa);
-  txt("Fase " + (phase + 1) + ": " + PHASES[phase].nome, W / 2, c.y + c.h * 0.28, H * 0.045, C.ink, { stroke: false, w: 700 });
+  const c = card(Math.min(W * 0.72, 540), H * 0.8), mw = c.w - 40;
+  txt(tr("pausa"), W / 2, c.y + c.h * 0.13, H * 0.085, C.rosa, { max: mw });
+  txt(tr("fase") + " " + (phase + 1) + ": " + phName(phase), W / 2, c.y + c.h * 0.28, H * 0.045, C.ink, { stroke: false, w: 700, max: mw });
   const p = Math.round((lanes[0].passed + lanes[1].passed) / (2 * N) * 100);
-  txt(p + "% do caminho     corações " + hearts + " de 3", W / 2, c.y + c.h * 0.38, H * 0.038, "#7A6A96", { stroke: false, w: 600 });
-  buttonsRow([{ id: "fases", label: "Fases", w: 100 }, { id: "reiniciar", label: "Reiniciar fase", w: 170 }, { id: "continuar", label: "Continuar", w: 150, fill: C.ouro }], c.y + c.h * 0.58, 44);
-  toggles(c.y + c.h * 0.82, 34);
+  txt(tr("caminho", p, hearts), W / 2, c.y + c.h * 0.38, H * 0.038, "#7A6A96", { stroke: false, w: 600, max: mw });
+  buttonsRow([{ id: "fases", label: tr("fases"), w: 100 }, { id: "reiniciar", label: tr("reiniciarFase"), w: 150 }, { id: "continuar", label: tr("continuar"), w: 140, fill: C.ouro }], c.y + c.h * 0.58, 44, mw);
+  toggles(c.y + c.h * 0.82, 34, mw);
 }
 function drawOptions(){
   ctx.fillStyle = "rgba(46,31,71,0.94)"; ctx.fillRect(0, 0, W, H);
-  txt("Opções", W / 2, 34, 26, C.rosa);
-  button("voltar", "Voltar", 16, 14, 96, 38, C.card, C.ink);
-  toggles(H * 0.34, 42);
+  txt(tr("opcoes"), W / 2, 34, 26, C.rosa, { max: W - 280 });
+  btnAuto("voltar", tr("voltar"), 16, 14, 38, 96);
+  const fh = 34, fy = H * 0.25;
+  txt(tr("idioma"), W / 2 - 16, fy, 20, "#FFFFFF", { align: "right" });
+  flagsPair(W / 2, fy - fh / 2, fh);
+  toggles(H * 0.43, 42, W - 40);
   const total = prog.stars.reduce((a, b) => a + b, 0), abertas = Math.min(prog.unlocked, PHASES.length);
-  const pl = (n, um, varios) => n + " " + (n === 1 ? um : varios);
-  txt(pl(total, "estrela", "estrelas") + ", " + collected.length + " de " + ITEMS.length + " presentes, " + pl(abertas, "fase aberta", "fases abertas"), W / 2, H * 0.56, Math.min(15, H * 0.04), "#FFFFFF", { stroke: false, w: 600 });
-  button("recomecar", "Recomeçar a jornada", W / 2 - 130, H * 0.63, 260, 44, C.red, "#FFFFFF");
-  txt("Apaga fases, estrelas e o álbum para jogar tudo de novo", W / 2, H * 0.63 + 64, Math.min(13, H * 0.036), "#CFC4E3", { stroke: false, w: 600 });
+  txt(tr("resumo", total, collected.length, abertas), W / 2, H * 0.58, Math.min(15, H * 0.04), "#FFFFFF", { stroke: false, w: 600, max: W - 40 });
+  const rw = Math.min(W - 40, labelW(tr("recomecar"), 44, 260));
+  button("recomecar", tr("recomecar"), W / 2 - rw / 2, H * 0.65, rw, 44, C.red, "#FFFFFF");
+  txt(tr("recomecarSub"), W / 2, H * 0.65 + 62, Math.min(13, H * 0.036), "#CFC4E3", { stroke: false, w: 600, max: W - 40 });
   if(confirmReset){
     for(const k in BTN) delete BTN[k];
     dim(0.6);
-    const c = card(Math.min(W * 0.66, 480), H * 0.62);
-    txt("Apagar tudo?", W / 2, c.y + c.h * 0.18, H * 0.075, C.rosa);
-    wrapText("As fases, as estrelas e os " + ITEMS.length + " presentes voltam ao começo. Não dá para desfazer.", W / 2, c.y + c.h * 0.43, c.w - 60, Math.min(18, H * 0.048), C.ink);
-    buttonsRow([{ id: "cancelar", label: "Cancelar", w: 140, fill: C.ouro }, { id: "apagar", label: "Apagar tudo", w: 160, fill: C.red }], c.y + c.h * 0.74, 44);
+    const c = card(Math.min(W * 0.66, 480), H * 0.62), mw = c.w - 50;
+    txt(tr("apagarTudoQ"), W / 2, c.y + c.h * 0.18, H * 0.075, C.rosa, { max: mw });
+    wrapText(tr("apagarTexto", ITEMS.length), W / 2, c.y + c.h * 0.43, mw, Math.min(18, H * 0.048), C.ink);
+    buttonsRow([{ id: "cancelar", label: tr("cancelar"), w: 140, fill: C.ouro }, { id: "apagar", label: tr("apagarTudo"), w: 160, fill: C.red }], c.y + c.h * 0.74, 44, mw);
   }
 }
 function dim(a){ ctx.fillStyle = `rgba(46,31,71,${a})`; ctx.fillRect(0, 0, W, H); }
 function card(w, h, y){ const x = W / 2 - w / 2; y = y == null ? H / 2 - h / 2 : y; ctx.fillStyle = C.card; rr(x, y, w, h, 26); ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = C.ink; ctx.stroke(); return { x, y, w, h }; }
 const pulse = () => Math.floor(clock * 2) % 2 === 0;
 function starsRow(x, y, n, s){ for(let k = 0; k < 3; k++){ starPath(x + (k - 1) * s * 2.3, y, s); ctx.fillStyle = k < n ? C.ouro : "rgba(255,255,255,0.35)"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = C.ink; ctx.stroke(); } }
-function buttonsRow(defs, cy, h){
-  const gap = 14, ws = defs.map(d => d.w), total = ws.reduce((a, b) => a + b, 0) + gap * (defs.length - 1);
+function buttonsRow(defs, cy, h, maxW){ // largura de cada botão vem do texto; a fileira inteira cabe em maxW
+  const gap = 14, gaps = gap * (defs.length - 1);
+  maxW = maxW || W - 32;
+  let ws = defs.map(d => labelW(d.label, h, d.w)), total = ws.reduce((a, b) => a + b, 0) + gaps;
+  if(total > maxW){ const k = (maxW - gaps) / (total - gaps); ws = ws.map(w => w * k); total = maxW; }
   let x = W / 2 - total / 2;
-  defs.forEach(d => { button(d.id, d.label, x, cy - h / 2, d.w, h, d.fill || C.card, C.ink); x += d.w + gap; });
+  defs.forEach((d, i) => { button(d.id, d.label, x, cy - h / 2, ws[i], h, d.fill || C.card, C.ink); x += ws[i] + gap; });
 }
 function drawTitle(){
   dim(0.3);
-  const s = Math.min(H * 0.22, W * 0.12), bob = Math.sin(clock * 2.2) * 5;
-  txt("Botinhos", W / 2 + 4, H * 0.24 + bob + 5, s, C.ouro, { lw: 0.3 });
-  txt("Botinhos", W / 2, H * 0.24 + bob, s, C.rosa, { lw: 0.3 });
+  const s = Math.min(H * 0.22, W * 0.12), bob = Math.sin(clock * 2.2) * 5, ty = Math.max(H * 0.24, 60 + s * 0.38);
+  txt("Botinhos", W / 2 + 4, ty + bob + 5, s, C.ouro, { lw: 0.3 });
+  txt("Botinhos", W / 2, ty + bob, s, C.rosa, { lw: 0.3 });
   const p = nextPhase();
-  txt("Fase " + (p + 1) + ": " + PHASES[p].nome + ", " + PHASES[p].curto, W / 2, H * 0.42, H * 0.06, "#FFFFFF");
-  txt("Rosa", W * 0.25, H * 0.66, H * 0.075, C.rosa);
-  txt("toque deste lado", W * 0.25, H * 0.75, H * 0.048, "#FFFFFF");
-  txt("Caramelo", W * 0.75, H * 0.66, H * 0.075, C.cara);
-  txt("toque deste lado", W * 0.75, H * 0.75, H * 0.048, "#FFFFFF");
-  txt("Toquem juntos: 5 beijinhos devolvem um coração; cada 2 estrelas novas abrem um presente", W / 2, H * 0.86, Math.min(H * 0.045, W * 0.022), C.ouro);
-  button("fases", "Fases", 16, 14, 104, 40, C.card, C.ink);
-  button("opcoes", "Opções", 130, 14, 112, 40, C.card, C.ink);
-  button("album", "Álbum " + collected.length + "/" + ITEMS.length, W - 152, 14, 136, 40, C.card, C.ink);
-  if(pulse()) txt("Toque para jogar", W / 2, H * 0.955, H * 0.05, "#FFFFFF");
+  txt(tr("fase") + " " + (p + 1) + ": " + phName(p) + ", " + phCurto(p), W / 2, H * 0.42, H * 0.06, "#FFFFFF", { max: W * 0.9 });
+  txt(tr("rosa"), W * 0.25, H * 0.66, H * 0.075, C.rosa);
+  txt(tr("ladoToque"), W * 0.25, H * 0.75, H * 0.048, "#FFFFFF", { max: W * 0.44 });
+  txt(tr("caramelo"), W * 0.75, H * 0.66, H * 0.075, C.cara);
+  txt(tr("ladoToque"), W * 0.75, H * 0.75, H * 0.048, "#FFFFFF", { max: W * 0.44 });
+  txt(tr("dica"), W / 2, H * 0.86, Math.min(H * 0.045, W * 0.022), C.ouro, { max: W - 32 });
+  let bx = 16;
+  bx += btnAuto("fases", tr("fases"), bx, 14, 40, 104) + 10;
+  btnAuto("opcoes", tr("opcoes"), bx, 14, 40, 104);
+  const al = tr("album") + " " + collected.length + "/" + ITEMS.length, aw = labelW(al, 40, 120);
+  button("album", al, W - 16 - aw, 14, aw, 40, C.card, C.ink);
+  const fh = 26; flagsPair(W - 16 - flagsW(fh) + 4, 66, fh);
+  if(pulse()) txt(tr("tocarJogar"), W / 2, H * 0.955, H * 0.05, "#FFFFFF");
 }
 function drawMap(){
   ctx.fillStyle = "rgba(46,31,71,0.94)"; ctx.fillRect(0, 0, W, H);
-  txt("Fases", W / 2, 34, 26, C.rosa);
-  button("voltar", "Voltar", 16, 14, 96, 38, C.card, C.ink);
+  txt(tr("fases"), W / 2, 34, 26, C.rosa, { max: W - 280 });
+  btnAuto("voltar", tr("voltar"), 16, 14, 38, 96);
   const total = prog.stars.reduce((a, b) => a + b, 0);
-  txt(total + " de " + PHASES.length * 3 + " estrelas", W / 2, 60, 13, "#FFFFFF", { stroke: false, w: 600 });
+  txt(tr("estrelasDe", total, PHASES.length * 3), W / 2, 60, 13, "#FFFFFF", { stroke: false, w: 600 });
   const cols = 5, gap = 10, m = 16, top = 78;
   const cw = (W - m * 2 - gap * (cols - 1)) / cols, ch = Math.min(cw * 0.9, (H - top - m - gap) / 2);
   const oy = top + ((H - top - m) - (ch * 2 + gap)) / 2;
   PHASES.forEach((P, k) => {
     const x = m + (k % cols) * (cw + gap), y = oy + Math.floor(k / cols) * (ch + gap), open = k < prog.unlocked;
     ctx.fillStyle = open ? C.card : "#5B4A78"; rr(x, y, cw, ch, 16); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = C.ink; ctx.stroke();
-    circ(x + 22, y + 22, 14); ctx.fillStyle = open ? C.rosa : "#7A6A96"; ctx.fill(); ctx.lineWidth = 2.5; ctx.stroke();
-    txt(String(k + 1), x + 22, y + 23, 15, "#FFFFFF", { lw: 0.3 });
-    wrapText(P.nome, x + cw / 2, y + ch * 0.45, cw - 14, Math.min(16, cw * 0.13), open ? C.ink : "#CFC4E3");
-    txt(P.curto, x + cw / 2, y + ch * 0.66, Math.min(12, cw * 0.1), open ? "#7A6A96" : "#A99BC4", { stroke: false, w: 600 });
-    if(open) starsRow(x + cw / 2, y + ch * 0.84, prog.stars[k], Math.min(9, cw * 0.06));
+    circ(x + 17, y + 17, 11); ctx.fillStyle = open ? C.rosa : "#7A6A96"; ctx.fill(); ctx.lineWidth = 2.5; ctx.stroke();
+    txt(String(k + 1), x + 17, y + 18, 12, "#FFFFFF", { lw: 0.3 });
+    wrapText(phName(k), x + cw / 2, y + Math.max(ch * 0.45, 46), cw - 14, Math.min(16, cw * 0.13), open ? C.ink : "#CFC4E3");
+    txt(phCurto(k), x + cw / 2, y + ch * 0.68, Math.min(12, cw * 0.1), open ? "#7A6A96" : "#A99BC4", { stroke: false, w: 600, max: cw - 12 });
+    if(open) starsRow(x + cw / 2, y + ch * 0.86, prog.stars[k], Math.min(9, cw * 0.06));
     else { ctx.fillStyle = "#CFC4E3"; rr(x + cw / 2 - 9, y + ch * 0.8, 18, 13, 3); ctx.fill(); ctx.strokeStyle = "#CFC4E3"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x + cw / 2, y + ch * 0.8, 6, Math.PI, 0); ctx.stroke(); }
     BTN["fase" + k] = { x, y, w: cw, h: ch };
   });
 }
 function drawIntro(){
   dim(0.25);
-  const P = PHASES[phase], c = card(Math.min(W * 0.6, 440), H * 0.56, H * 0.2);
-  txt("Fase " + (phase + 1) + " de " + PHASES.length, W / 2, c.y + c.h * 0.16, H * 0.042, "#7A6A96", { stroke: false, w: 700 });
-  txt(P.nome, W / 2, c.y + c.h * 0.38, Math.min(H * 0.09, c.w * 0.09), C.rosa, { lw: 0.26 });
-  txt(P.sub, W / 2, c.y + c.h * 0.58, Math.min(H * 0.045, c.w * 0.04), C.ink, { stroke: false, w: 600 });
-  if(prog.stars[phase]) starsRow(W / 2, c.y + c.h * 0.78, prog.stars[phase], 10);
-  else txt("Cheguem até o meio juntos", W / 2, c.y + c.h * 0.78, H * 0.04, "#7A6A96", { stroke: false, w: 600 });
-  button("voltar", "Fases", 16, 14, 96, 38, C.card, C.ink);
-  if(pulse()) txt("Toque para começar", W / 2, H * 0.92, H * 0.055, "#FFFFFF");
+  const c = card(Math.min(W * 0.6, 440), H * 0.56, H * 0.2), mw = c.w - 40;
+  txt(tr("faseDe", phase + 1, PHASES.length), W / 2, c.y + c.h * 0.16, H * 0.042, "#7A6A96", { stroke: false, w: 700, max: mw });
+  txt(phName(phase), W / 2, c.y + c.h * 0.38, Math.min(H * 0.09, c.w * 0.09), C.rosa, { lw: 0.26, max: mw });
+  wrapText(phSub(phase), W / 2, c.y + c.h * 0.58, mw, Math.min(H * 0.045, c.w * 0.04), C.ink, { w: 600 });
+  if(prog.stars[phase]) starsRow(W / 2, c.y + c.h * 0.8, prog.stars[phase], 10);
+  else txt(tr("cheguem"), W / 2, c.y + c.h * 0.8, H * 0.04, "#7A6A96", { stroke: false, w: 600, max: mw });
+  btnAuto("voltar", tr("fases"), 16, 14, 38, 96);
+  if(pulse()) txt(tr("tocarComecar"), W / 2, H * 0.92, H * 0.055, "#FFFFFF", { max: W - 40 });
 }
 function drawOver(){
   dim(0.45);
-  const c = card(Math.min(W * 0.62, 440), H * 0.62);
-  txt("Os corações acabaram", W / 2, c.y + c.h * 0.2, H * 0.075, C.rosa);
+  const c = card(Math.min(W * 0.62, 440), H * 0.62), mw = c.w - 44;
+  txt(tr("acabaram"), W / 2, c.y + c.h * 0.2, H * 0.075, C.rosa, { max: mw });
   const p = Math.round((lanes[0].passed + lanes[1].passed) / (2 * N) * 100);
-  txt("Faltavam " + (100 - p) + "% para eles se encontrarem", W / 2, c.y + c.h * 0.44, H * 0.045, C.ink, { stroke: false, w: 600 });
-  buttonsRow([{ id: "fases", label: "Fases", w: 110 }, { id: "repetir", label: "Tentar de novo", w: 170, fill: C.ouro }], c.y + c.h * 0.74, 42);
+  wrapText(tr("faltavam", 100 - p), W / 2, c.y + c.h * 0.44, mw, H * 0.045, C.ink, { w: 600 });
+  buttonsRow([{ id: "fases", label: tr("fases"), w: 110 }, { id: "repetir", label: tr("tentar"), w: 170, fill: C.ouro }], c.y + c.h * 0.74, 42, mw);
 }
 function drawWin(){
   dim(0.4);
   const last = phase === PHASES.length - 1;
-  const c = card(Math.min(W * 0.7, 520), H * 0.88);
-  txt(last ? "Fim da viagem!" : "Se encontraram!", W / 2, c.y + c.h * 0.11, H * 0.08, C.rosa);
-  const labels = ["nenhuma batida", "sincronia " + Math.round(STAR_SYNC * 100) + "%+", "até " + STAR_TIME + " s"];
+  const c = card(Math.min(W * 0.7, 520), H * 0.88), mw = c.w - 44;
+  txt(last ? tr("fimViagem") : tr("encontraram"), W / 2, c.y + c.h * 0.11, H * 0.08, C.rosa, { max: mw });
+  const labels = [tr("semBatida"), tr("sincronia") + " " + Math.round(STAR_SYNC * 100) + "%+", tr("ate", STAR_TIME)];
   for(let k = 0; k < 3; k++){
-    const x = W / 2 + (k - 1) * c.w * 0.28, y = c.y + c.h * 0.3, got = result && result.stars[k];
+    const x = W / 2 + (k - 1) * c.w * 0.3, y = c.y + c.h * 0.3, got = result && result.stars[k];
     const pop = got ? 1 + Math.max(0, 0.4 - Math.max(0, stateT - 0.3 - k * 0.25)) : 1;
     starPath(x, y, H * 0.058 * pop); ctx.fillStyle = got ? C.ouro : "#E7E1F0"; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = C.ink; ctx.stroke();
-    txt(labels[k], x, y + H * 0.09, H * 0.034, C.ink, { stroke: false, w: 600 });
+    txt(labels[k], x, y + H * 0.09, H * 0.034, C.ink, { stroke: false, w: 600, max: c.w * 0.28 });
   }
   if(result){
-    txt("Tempo " + result.time.toFixed(1).replace(".", ",") + " s     Batidas " + result.crashes + "     Sincronia " + Math.round(result.syncRate * 100) + "%", W / 2, c.y + c.h * 0.52, H * 0.038, C.ink, { stroke: false, w: 600 });
-    let y = c.y + c.h * 0.61;
-    if(result.record){ txt("Novo recorde!", W / 2, y, H * 0.045, C.ouro, { lw: 0.28 }); y += c.h * 0.08; }
+    txt(tr("stats", result.time.toFixed(1).replace(".", ","), result.crashes, Math.round(result.syncRate * 100)), W / 2, c.y + c.h * 0.52, H * 0.038, C.ink, { stroke: false, w: 600, max: mw });
+    let y = c.y + c.h * 0.62;
+    if(result.record){ txt(tr("recorde"), W / 2, y, H * 0.045, C.ouro, { lw: 0.28, max: mw }); y += c.h * 0.085; }
     let line;
-    if(collected.length >= ITEMS.length) line = "Álbum completo!";
-    else { const need = Math.max(1, (collected.length + 1) * STARS_PER_GIFT - result.total); line = need === 1 ? "Falta 1 estrela nova para o próximo presente" : "Faltam " + need + " estrelas novas para o próximo presente"; }
-    if(last && collected.length < ITEMS.length) line = "Os botinhos se encontraram em todas as cidades. " + line;
-    txt(line, W / 2, y, Math.min(H * 0.036, c.w * 0.034), C.rosa, { lw: 0.26 });
+    if(collected.length >= ITEMS.length) line = tr("albumCompleto");
+    else line = tr("falta", Math.max(1, (collected.length + 1) * STARS_PER_GIFT - result.total));
+    if(last && collected.length < ITEMS.length) line = tr("todasCidades") + " " + line;
+    wrapText(line, W / 2, y, mw, Math.min(H * 0.042, 16), C.rosa, { stroke: true, lw: 0.26, w: 800 });
   }
-  const defs = [{ id: "fases", label: "Fases", w: 96 }, { id: "repetir", label: "Repetir", w: 110 }];
-  defs.push(last ? { id: "album", label: "Álbum", w: 120, fill: C.ouro } : { id: "proxima", label: "Próxima fase", w: 150, fill: C.ouro });
-  buttonsRow(defs, c.y + c.h * 0.86, 40);
+  const defs = [{ id: "fases", label: tr("fases"), w: 96 }, { id: "repetir", label: tr("repetir"), w: 110 }];
+  defs.push(last ? { id: "album", label: tr("album"), w: 120, fill: C.ouro } : { id: "proxima", label: tr("proxima"), w: 150, fill: C.ouro });
+  buttonsRow(defs, c.y + c.h * 0.86, 40, mw);
   if(showingGift()) drawGiftReveal(giftQueue[0], giftT);
 }
 function drawPresent(s, open){ // pacote de presente; open de 0 a 1 levanta a tampa
@@ -1424,15 +1564,15 @@ function drawGiftReveal(k, t, hint){
   const shakeX = open > 0 ? 0 : Math.sin(t * 40) * t * 7;
   ctx.save(); ctx.translate(cx + shakeX, cy + s * 0.3); drawPresent(s * 0.85, open); ctx.restore();
   if(open > 0){ const pop = 1 + Math.sin(open * Math.PI) * 0.18; drawItem(k, cx, cy - s * 0.15 - open * s * 0.1, s * 1.15 * open * pop, false); }
-  txt("Presente!", cx, H * 0.11, H * 0.085, C.rosa);
-  if(t > 0.9) txt((k + 1) + ". " + ITEMS[k].nome, cx, H * 0.86, H * 0.06, "#FFFFFF");
-  if(t > 1.2 && pulse()) txt(hint || "Toque para guardar no álbum", cx, H * 0.95, H * 0.042, C.ouro, { lw: 0.28 });
+  txt(tr("presente"), cx, H * 0.11, H * 0.085, C.rosa);
+  if(t > 0.9) txt((k + 1) + ". " + itName(k), cx, H * 0.86, H * 0.06, "#FFFFFF", { max: W - 40 });
+  if(t > 1.2 && pulse()) txt(hint || tr("guardar"), cx, H * 0.95, H * 0.042, C.ouro, { lw: 0.28, max: W - 40 });
 }
 function drawAlbum(){
   ctx.fillStyle = "rgba(46,31,71,0.94)"; ctx.fillRect(0, 0, W, H);
-  txt("Álbum dos Botinhos", W / 2, 34, 26, C.rosa);
-  button("voltar", "Voltar", 16, 14, 96, 38, C.card, C.ink);
-  txt(collected.length + " de " + ITEMS.length + " presentes", W / 2, 60, 13, "#FFFFFF", { stroke: false, w: 600 });
+  txt(tr("albumTitulo"), W / 2, 34, 26, C.rosa, { max: W - 280 });
+  btnAuto("voltar", tr("voltar"), 16, 14, 38, 96);
+  txt(tr("presentesDe", collected.length, ITEMS.length), W / 2, 60, 13, "#FFFFFF", { stroke: false, w: 600 });
   const cols = 8, gap = 8, m = 14, top = 76;
   const cw = (W - m * 2 - gap * (cols - 1)) / cols, ch = Math.min(cw * 1.3, (H - top - m - gap) / 2);
   const oy = top + ((H - top - m) - (ch * 2 + gap)) / 2;
@@ -1441,26 +1581,27 @@ function drawAlbum(){
     ctx.fillStyle = have ? C.card : "#E6DDF0"; rr(x, y, cw, ch, 14); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = C.ink; ctx.stroke();
     drawItem(k, x + cw / 2, y + ch * 0.4, Math.min(cw, ch * 0.66) * 0.86, !have);
     if(!have) txt("?", x + cw / 2, y + ch * 0.4, ch * 0.22, "#FFFFFF");
-    wrapText(have ? (k + 1) + ". " + it.nome : "Presente " + (k + 1), x + cw / 2, y + ch * 0.83, cw - 8, Math.max(9.5, Math.min(12.5, cw * 0.11)), C.ink);
+    wrapText(have ? (k + 1) + ". " + itName(k) : tr("presenteN", k + 1), x + cw / 2, y + ch * 0.83, cw - 8, Math.max(9.5, Math.min(12.5, cw * 0.11)), C.ink);
     BTN["item" + k] = { x, y, w: cw, h: ch };
   });
 }
 function drawDetail(){
   drawAlbum(); dim(0.55);
   const it = ITEMS[detail], have = collected.includes(it.id);
-  const c = card(Math.min(W * 0.7, 560), H * 0.88);
+  const c = card(Math.min(W * 0.7, 560), H * 0.88), mw = c.w - 44;
   if(have){
     drawItem(detail, W / 2, c.y + c.h * 0.37, Math.min(c.w * 0.5, c.h * 0.48), false);
-    txt(it.nome, W / 2, c.y + c.h * 0.7, Math.min(24, H * 0.06), C.rosa);
-    txt("Presente " + (detail + 1) + " de " + ITEMS.length, W / 2, c.y + c.h * 0.78, Math.min(15, H * 0.04), C.ink, { stroke: false, w: 600 });
-    button("reabrir", "Abrir de novo", W / 2 - 85, c.y + c.h * 0.84, 170, 38, C.ouro, C.ink);
+    txt(itName(detail), W / 2, c.y + c.h * 0.7, Math.min(24, H * 0.06), C.rosa, { max: mw });
+    txt(tr("presenteDe", detail + 1, ITEMS.length), W / 2, c.y + c.h * 0.78, Math.min(15, H * 0.04), C.ink, { stroke: false, w: 600, max: mw });
+    const bw = labelW(tr("abrirDeNovo"), 38, 170);
+    button("reabrir", tr("abrirDeNovo"), W / 2 - bw / 2, c.y + c.h * 0.84, bw, 38, C.ouro, C.ink);
   }else{
     drawItem(detail, W / 2, c.y + c.h * 0.43, Math.min(c.w * 0.62, c.h * 0.64), true);
-    txt("Ainda não ganharam", W / 2, c.y + c.h * 0.83, Math.min(24, H * 0.06), C.rosa);
-    txt("Presente " + (detail + 1) + " de " + ITEMS.length, W / 2, c.y + c.h * 0.93, Math.min(15, H * 0.04), C.ink, { stroke: false, w: 600 });
+    txt(tr("aindaNao"), W / 2, c.y + c.h * 0.83, Math.min(24, H * 0.06), C.rosa, { max: mw });
+    txt(tr("presenteDe", detail + 1, ITEMS.length), W / 2, c.y + c.h * 0.93, Math.min(15, H * 0.04), C.ink, { stroke: false, w: 600, max: mw });
   }
 }
-function drawReplay(){ ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H); drawGiftReveal(detail, stateT, "Toque para voltar"); }
+function drawReplay(){ ctx.fillStyle = C.ink; ctx.fillRect(0, 0, W, H); drawGiftReveal(detail, stateT, tr("tocarVoltar")); }
 
 /* ---------- Laço principal ---------- */
 function update(dt){
@@ -1469,7 +1610,7 @@ function update(dt){
   if(state === "replay" && !replayOpened && stateT > 0.7){ replayOpened = true; SFX.gift(); vibrate([20, 40, 20]); }
   if(state === "count"){
     const n = Math.floor(stateT / COUNT_STEP);
-    if(n >= 3){ setState("play"); SFX.count(true); floatText("Vai!", W / 2, H * 0.5, C.ouro); }
+    if(n >= 3){ setState("play"); SFX.count(true); floatText(tr("vai"), W / 2, H * 0.5, C.ouro); }
     else if(n >= countN){ countN = n + 1; SFX.count(false); }
   }
   if(state === "win"){
@@ -1533,7 +1674,7 @@ function frame(now){
 startPhase(nextPhase());
 requestAnimationFrame(frame);
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
-window.BT = { get btn(){ return BTN; }, get opts(){ return opts; }, get master(){ return master ? master.gain.value : null; }, get hearts(){ return hearts; }, get tPlay(){ return tPlay; }, get state(){ return state; }, get lanes(){ return lanes; }, get prog(){ return prog; }, get gifts(){ return giftQueue; }, get collected(){ return collected; }, get clips(){ return Object.keys(CLIPS).filter(k => CLIPS[k]); }, setState, startPhase, reset, finish, onTap, play, setResult: (crashesN, syncRate, time) => { crashes = crashesN; taps = [10, 10]; syncs = Math.round(syncRate * 10); tPlay = time; } };
+window.BT = { setLang, get lang(){ return lang; }, get btn(){ return BTN; }, get opts(){ return opts; }, get master(){ return master ? master.gain.value : null; }, get hearts(){ return hearts; }, get tPlay(){ return tPlay; }, get state(){ return state; }, get lanes(){ return lanes; }, get prog(){ return prog; }, get gifts(){ return giftQueue; }, get collected(){ return collected; }, get clips(){ return Object.keys(CLIPS).filter(k => CLIPS[k]); }, setState, startPhase, reset, finish, onTap, play, setResult: (crashesN, syncRate, time) => { crashes = crashesN; taps = [10, 10]; syncs = Math.round(syncRate * 10); tPlay = time; } };
 })();
 </script>
 </body>

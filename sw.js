@@ -1,7 +1,7 @@
 // Botinhos: service worker
 // O jogo funciona offline depois da primeira abertura. HTML: rede primeiro (para receber atualizações);
 // ícones e fontes: cache primeiro.
-const VERSION = "botinhos-v3";
+const VERSION = "botinhos-v4";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png", "./sons/gurl.mp3", "./sons/yay.mp3"];
 
 self.addEventListener("install", e => {

@@ -12,6 +12,10 @@ Jogo para duas pessoas no mesmo celular. Um boto rosa e um boto caramelo nadam p
 - Sons gravados: "Gurl" quando os corações acabam e "Yay" nas 3 estrelas (pasta `sons/`, já cortados e com volume igualado).
 - Cada fase começa com uma contagem 3, 2, 1, que também aparece ao sair da pausa.
 
+## Idiomas
+
+Português e espanhol (rioplatense). As bandeirinhas do Brasil e da Argentina ficam na tela inicial, abaixo do Álbum, e em Opções. Na primeira abertura, o jogo segue o idioma do aparelho; depois, a escolha fica salva.
+
 ## Pausa e opções
 
 - O botão ⏸ ao lado da barra de progresso pausa a fase: Continuar, Reiniciar fase ou Fases.
