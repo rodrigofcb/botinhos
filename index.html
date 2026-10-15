@@ -33,6 +33,11 @@ const C = {
 };
 const FONT = '"Baloo 2","Trebuchet MS",system-ui,sans-serif';
 const SYNC_MS = 130, KISSES_PER_HEART = 5, STAR_SYNC = 0.6, STARS_PER_GIFT = 2;
+// Nota da rodada (0 a 1000, nunca mostrada): sincronia até 400, tempo até 300, dano até 300.
+// As estrelas vêm dos cortes; a barrinha da vitória só mostra até onde a nota chegou.
+const CUTS = [400, 650, 800], BAR_POS = [0.3, 0.6, 0.9]; // posição de cada estrela na barrinha
+const STARS_PER_PHASE = 1.5; // trava suave: a fase p (de 0) abre com floor(1.5 * p) estrelas no total
+const needStars = p => Math.floor(STARS_PER_PHASE * p);
 const SCALE = [0, 2, 3, 5, 7, 8, 11, 12, 14, 15, 17, 19, 20, 23, 24, 26];
 const BTN = {};
 let clock = 0;
@@ -87,7 +92,7 @@ const STR = {
     fimViagem: "Fim da viagem!", encontraram: "Se encontraram!",
     semBatida: "nenhuma batida", sincronia: "sincronia", ate: s => "até " + s + " s",
     stats: (t, b, s) => "Tempo " + t + " s     Batidas " + b + "     Sincronia " + s + "%",
-    recorde: "Novo recorde!", novo: "Novo!", albumCompleto: "Álbum completo!",
+    recorde: "Novo recorde!", novo: "Novo!", albumCompleto: "Álbum completo!", faltam: n => (n === 1 ? "Falta " : "Faltam ") + n,
     falta: n => n === 1 ? "Falta 1 estrela nova para o próximo presente" : "Faltam " + n + " estrelas novas para o próximo presente",
     todasCidades: "Os botinhos se encontraram em todas as cidades.",
     repetir: "Repetir", proxima: "Próxima fase",
@@ -116,7 +121,7 @@ const STR = {
     fimViagem: "¡Fin del viaje!", encontraram: "¡Se encontraron!",
     semBatida: "sin choques", sincronia: "sincronía", ate: s => "hasta " + s + " s",
     stats: (t, b, s) => "Tiempo " + t + " s     Choques " + b + "     Sincronía " + s + "%",
-    recorde: "¡Nuevo récord!", novo: "¡Nuevo!", albumCompleto: "¡Álbum completo!",
+    recorde: "¡Nuevo récord!", novo: "¡Nuevo!", albumCompleto: "¡Álbum completo!", faltam: n => (n === 1 ? "Falta " : "Faltan ") + n,
     falta: n => n === 1 ? "Falta 1 estrella nueva para el próximo regalo" : "Faltan " + n + " estrellas nuevas para el próximo regalo",
     todasCidades: "Los botitos se encontraron en todas las ciudades.",
     repetir: "Repetir", proxima: "Próximo nivel",
@@ -218,6 +223,10 @@ const SFX = {
   win(){ if(!ac) return; const t = ac.currentTime; [440, 523.25, 659.25, 880, 659.25, 880, 1046.5].forEach((f, k) => tone(f, t + k * 0.11, 0.35, "triangle", 0.2)); tone(220, t, 1.2, "sine", 0.2); },
   over(){ if(!ac) return; const t = ac.currentTime; [523.25, 440, 349.23, 261.63].forEach((f, k) => tone(f, t + k * 0.16, 0.3, "triangle", 0.18)); },
   gift(){ if(!ac) return; const t = ac.currentTime; [1046.5, 1318.5, 1568, 2093].forEach((f, k) => tone(f, t + k * 0.08, 0.4, "triangle", 0.16)); },
+  star(k){ // brilho que sobe a cada estrela acesa na barrinha
+    if(!ac) return; const t = ac.currentTime, b = [1046.5, 1318.5, 1568][k];
+    tone(b, t, 0.22, "triangle", 0.18); tone(b * 1.5, t + 0.06, 0.28, "triangle", 0.14); tone(b * 2, t + 0.12, 0.4, "sine", 0.12);
+  },
   count(go){ if(!ac) return; const t = ac.currentTime; if(go){ tone(880, t, 0.3, "triangle", 0.2); tone(1318.5, t + 0.04, 0.3, "triangle", 0.14); } else tone(587.33, t, 0.12, "triangle", 0.18); },
   pause(){ if(!ac) return; const t = ac.currentTime; tone(784, t, 0.1, "sine", 0.15); tone(523.25, t + 0.07, 0.14, "sine", 0.15); },
   tango(){ // melodia original em ritmo de habanera, com timbre de caixinha de música
@@ -1194,18 +1203,34 @@ function updateLane(L, dt){
   }
   if(L.passed >= N){ L.done = true; SFX.done(L.i); }
 }
+function scoreOf(crashesN, syncRate, t){ // tempo cheio até 80% do limite, zero a partir de 140%
+  const tf = Math.max(0, Math.min(1, (1.4 * STAR_TIME - t) / (0.6 * STAR_TIME)));
+  return Math.round(400 * syncRate + 300 * tf + Math.max(0, 300 - 100 * crashesN));
+}
+// A barrinha não é linear: cada estrela fica numa posição fixa e a nota é mapeada por trechos
+function barFrac(s){
+  const xs = [0, ...CUTS, 1000], ys = [0, ...BAR_POS, 1];
+  for(let k = 1; k < xs.length; k++) if(s <= xs[k]) return ys[k - 1] + (ys[k] - ys[k - 1]) * (s - xs[k - 1]) / (xs[k] - xs[k - 1]);
+  return 1;
+}
+function updateUnlocked(){ // a próxima fase abre quando a anterior foi concluída e o total de estrelas chegou ao pedido
+  const total = prog.stars.reduce((a, b) => a + b, 0);
+  while(prog.unlocked < PHASES.length && prog.best[prog.unlocked - 1] && total >= needStars(prog.unlocked)) prog.unlocked++;
+}
 function finish(){
   const syncRate = (taps[0] + taps[1]) ? syncs * 2 / (taps[0] + taps[1]) : 0;
-  // Cada conquista da rodada vale uma estrela, seja qual for; a fase guarda a melhor rodada
+  const score = scoreOf(crashes, syncRate, tPlay), n = CUTS.filter(c => score >= c).length;
+  // Selos da fase: ficam marcados para sempre, independentes da nota
   const conq = [crashes === 0, syncRate >= STAR_SYNC, tPlay <= STAR_TIME];
-  const n = conq.filter(Boolean).length;
   const had = prog.conq[phase], fresh = conq.map((g, k) => g && !had[k]);
   prog.conq[phase] = had.map((h, k) => h || conq[k]);
   const prev = prog.best[phase];
-  result = { conq, fresh, n, time: tPlay, crashes, syncRate, record: !prev || n > prev.n || (n === prev.n && tPlay < prev.time) };
-  if(result.record) prog.best[phase] = { n, time: tPlay };
+  // Recorde pela nota; progresso antigo (sem nota) usa a regra de antes até ser batido
+  const record = !prev || (prev.score != null ? score > prev.score : n > prev.n || (n === prev.n && tPlay < prev.time));
+  result = { conq, fresh, n, score, time: tPlay, crashes, syncRate, record, lit: [false, false, false], litT: [0, 0, 0] };
+  if(record) prog.best[phase] = { n, time: tPlay, score };
   prog.stars[phase] = Math.max(prog.stars[phase], n);
-  prog.unlocked = Math.min(PHASES.length, Math.max(prog.unlocked, phase + 2));
+  updateUnlocked();
   store.set("progresso", prog);
   // A cada 2 estrelas no total (contando só a melhor marca de cada fase), o próximo presente da linha do tempo
   const total = prog.stars.reduce((a, b) => a + b, 0), target = Math.min(ITEMS.length, Math.floor(total / STARS_PER_GIFT));
@@ -1215,8 +1240,16 @@ function finish(){
   result.total = total; giftT = 0; giftOpened = false; yayPlayed = false;
 }
 function flap(i){ const L = lanes[i]; L.vy = FLAP; L.sq = 1; SFX.blup(i); bubbles(L); }
-const GIFT_AT = 1.7; // segundos na tela de vitória antes de o presente aparecer
-const showingGift = () => state === "win" && giftQueue.length > 0 && stateT > GIFT_AT;
+// Barrinha da vitória: começa depois de BAR_START s, acelera e freia (ease in-out); dura mais quanto maior a nota
+const BAR_START = 0.45;
+const barDur = () => 0.8 + 1.6 * barFrac(result.score);
+function barDisp(){
+  if(!result) return 0;
+  const k = Math.max(0, Math.min(1, (stateT - BAR_START) / barDur()));
+  return barFrac(result.score) * (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+}
+const giftAt = () => result ? BAR_START + barDur() + 0.6 : 1.7; // o presente só aparece depois da barrinha
+const showingGift = () => state === "win" && giftQueue.length > 0 && stateT > giftAt();
 
 /* ---------- Tela cheia, orientação e tela acesa ---------- */
 function lockLandscape(){ try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape-primary").catch(() => {}); }catch(e){} }
@@ -1336,7 +1369,8 @@ function onTap(lx, ly, now){
   if(state === "win" && stateT > 0.8){
     if(hit("fases", lx, ly)) setState("map");
     else if(hit("repetir", lx, ly)) play();
-    else if(hit("proxima", lx, ly)){ startPhase(phase + 1); setState("intro"); }
+    else if(hit("proxima", lx, ly) && phase + 1 < prog.unlocked){ startPhase(phase + 1); setState("intro"); }
+    else if(hit("trancada", lx, ly)) setState("map");
     else if(hit("album", lx, ly)) setState("album");
   }
 }
@@ -1478,6 +1512,11 @@ function badge(k, x, y, s, on){
   }
 }
 function badgesRow(x, y, conq, s){ for(let k = 0; k < 3; k++) badge(k, x + (k - 1) * s * 2.6, y, s, conq[k]); }
+function lockIcon(x, y, r, col){ // cadeado centrado em (x, y); r = raio da alça
+  ctx.fillStyle = col; rr(x - r * 1.5, y - r * 0.2, r * 3, r * 2.2, r * 0.5); ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, r * 0.5); ctx.lineCap = "round"; ctx.beginPath(); ctx.arc(x, y - r * 0.2, r, Math.PI, 0); ctx.stroke();
+}
+function starIcon(x, y, s, fill){ starPath(x, y, s); ctx.fillStyle = fill || C.ouro; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = fill ? fill : C.ink; ctx.stroke(); }
 function checkMark(x, y, s){ // feito nesta rodada
   circ(x, y, s); ctx.fillStyle = C.green; ctx.fill(); ctx.lineWidth = Math.max(1.5, s * 0.2); ctx.strokeStyle = C.ink; ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x - s * 0.45, y + s * 0.02); ctx.lineTo(x - s * 0.12, y + s * 0.36); ctx.lineTo(x + s * 0.48, y - s * 0.34);
@@ -1534,7 +1573,13 @@ function drawMap(){
     wrapText(phName(k), x + cw / 2, y + Math.max(ch * 0.45, 46), cw - 14, Math.min(16, cw * 0.13), open ? C.ink : "#CFC4E3");
     txt(phCurto(k), x + cw / 2, y + ch * 0.68, Math.min(12, cw * 0.1), open ? "#7A6A96" : "#A99BC4", { stroke: false, w: 600, max: cw - 12 });
     if(open) starsRow(x + cw / 2, y + ch * 0.86, prog.stars[k], Math.min(9, cw * 0.06));
-    else { ctx.fillStyle = "#CFC4E3"; rr(x + cw / 2 - 9, y + ch * 0.8, 18, 13, 3); ctx.fill(); ctx.strokeStyle = "#CFC4E3"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x + cw / 2, y + ch * 0.8, 6, Math.PI, 0); ctx.stroke(); }
+    else { // cadeado e quantas estrelas no total a fase pede
+      const need = String(needStars(k)), fs2 = Math.min(13, cw * 0.11); ctx.save(); ctx.font = `800 ${fs2}px ${FONT}`; const tw = ctx.measureText(need).width; ctx.restore();
+      const s = Math.min(9, cw * 0.065), gap = 6, total = 18 + gap + s * 2 + 4 + tw; let ix = x + cw / 2 - total / 2;
+      lockIcon(ix + 9, y + ch * 0.85, 6, "#CFC4E3"); ix += 18 + gap;
+      starIcon(ix + s, y + ch * 0.85, s, "#CFC4E3"); ix += s * 2 + 4;
+      txt(need, ix + tw / 2, y + ch * 0.85 + 1, fs2, "#CFC4E3", { stroke: false, w: 800 });
+    }
     BTN["fase" + k] = { x, y, w: cw, h: ch };
   });
 }
@@ -1562,11 +1607,14 @@ function drawWin(){
   const last = phase === PHASES.length - 1;
   const c = card(Math.min(W * 0.7, 520), H * 0.88), mw = c.w - 44;
   txt(last ? tr("fimViagem") : tr("encontraram"), W / 2, c.y + c.h * 0.11, H * 0.08, C.rosa, { max: mw });
-  // Estrelas: uma por conquista da rodada, sempre preenchidas da esquerda para a direita
-  const n = result ? result.n : 0, ss = H * 0.058;
+  // Barrinha da nota (sem número): enche com aceleração e freio; cada estrela acende quando a barra chega nela
+  const ss = H * 0.05, bw = c.w * 0.76, bx = W / 2 - bw / 2, by0 = c.y + c.h * 0.255, th = H * 0.03, d = barDisp();
+  rr(bx, by0 - th / 2, bw, th, th / 2); ctx.fillStyle = "#E7E1F0"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = C.ink; ctx.stroke();
+  if(d > 0){ rr(bx, by0 - th / 2, Math.max(th, bw * d), th, th / 2); ctx.fillStyle = C.ouro; ctx.fill(); ctx.stroke(); }
   for(let k = 0; k < 3; k++){
-    const got = k < n, pop = got ? 1 + Math.max(0, 0.4 - Math.max(0, stateT - 0.3 - k * 0.25)) : 1;
-    starPath(W / 2 + (k - 1) * ss * 2.7, c.y + c.h * 0.255, ss * pop); ctx.fillStyle = got ? C.ouro : "#E7E1F0"; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = C.ink; ctx.stroke();
+    const x = bx + bw * BAR_POS[k], lit = result && result.lit[k], age = lit ? stateT - result.litT[k] : 9;
+    if(age < 0.5) for(let j = 0; j < 6; j++){ const a = j * Math.PI / 3 + age * 2, r = ss * (1.3 + age * 2.4); sparkle(x + Math.cos(a) * r, by0 + Math.sin(a) * r, ss * 0.24 * (1 - age * 2), C.ouro); }
+    starPath(x, by0, ss * (lit ? 1 + Math.max(0, 0.45 - age) : 1)); ctx.fillStyle = lit ? C.ouro : "#E7E1F0"; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = C.ink; ctx.stroke();
   }
   // Selos: colorido = conquista da fase (em qualquer rodada); ✓ = feita nesta rodada; "Novo!" = primeira vez
   const labels = [tr("semBatida"), tr("sincronia") + " " + Math.round(STAR_SYNC * 100) + "%+", tr("ate", STAR_TIME)];
@@ -1589,8 +1637,12 @@ function drawWin(){
     wrapText(line, W / 2, y, mw, Math.min(H * 0.042, 16), C.rosa, { stroke: true, lw: 0.26, w: 800 });
   }
   const defs = [{ id: "fases", label: tr("fases"), w: 96 }, { id: "repetir", label: tr("repetir"), w: 110 }];
-  defs.push(last ? { id: "album", label: tr("album"), w: 120, fill: C.ouro } : { id: "proxima", label: tr("proxima"), w: 150, fill: C.ouro });
+  const locked = !last && phase + 1 >= prog.unlocked, missing = locked ? Math.max(1, needStars(phase + 1) - prog.stars.reduce((a, b) => a + b, 0)) : 0;
+  if(last) defs.push({ id: "album", label: tr("album"), w: 120, fill: C.ouro });
+  else if(locked) defs.push({ id: "trancada", label: tr("faltam", missing), w: 170, fill: "#CFC4E3" });
+  else defs.push({ id: "proxima", label: tr("proxima"), w: 150, fill: C.ouro });
   buttonsRow(defs, c.y + c.h * 0.89, 40, mw);
+  if(BTN.trancada){ const b = BTN.trancada; lockIcon(b.x + b.h * 0.62, b.y + b.h / 2, b.h * 0.2, C.ink); starIcon(b.x + b.w - b.h * 0.62, b.y + b.h / 2, b.h * 0.26); }
   if(showingGift()) drawGiftReveal(giftQueue[0], giftT);
 }
 function drawPresent(s, open){ // pacote de presente; open de 0 a 1 levanta a tampa
@@ -1664,7 +1716,13 @@ function update(dt){
     else if(n >= countN){ countN = n + 1; SFX.count(false); }
   }
   if(state === "win"){
-    if(result && result.n === 3 && !yayPlayed && stateT > 0.8){ yayPlayed = true; playClip("yay"); }
+    if(result){ // cada estrela acende quando a barrinha chega nela; a terceira traz o "Yay"
+      const d = barDisp();
+      for(let k = 0; k < 3; k++) if(!result.lit[k] && d >= BAR_POS[k] - 1e-6){
+        result.lit[k] = true; result.litT[k] = stateT; SFX.star(k); vibrate(k === 2 ? [20, 30, 40] : 20);
+        if(k === 2 && !yayPlayed){ yayPlayed = true; playClip("yay", 0.1); }
+      }
+    }
     if(showingGift()){ giftT += dt; if(!giftOpened && giftT > 0.7){ giftOpened = true; SFX.gift(); vibrate([20, 40, 20]); } }
   }
   if(state === "play"){
@@ -1724,7 +1782,7 @@ function frame(now){
 startPhase(nextPhase());
 requestAnimationFrame(frame);
 if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
-window.BT = { setLang, get lang(){ return lang; }, get btn(){ return BTN; }, get opts(){ return opts; }, get master(){ return master ? master.gain.value : null; }, get hearts(){ return hearts; }, get tPlay(){ return tPlay; }, get state(){ return state; }, get lanes(){ return lanes; }, get prog(){ return prog; }, get gifts(){ return giftQueue; }, get collected(){ return collected; }, get clips(){ return Object.keys(CLIPS).filter(k => CLIPS[k]); }, setState, startPhase, reset, finish, onTap, play, setResult: (crashesN, syncRate, time) => { crashes = crashesN; taps = [10, 10]; syncs = Math.round(syncRate * 10); tPlay = time; } };
+window.BT = { setLang, get lang(){ return lang; }, get btn(){ return BTN; }, get opts(){ return opts; }, get master(){ return master ? master.gain.value : null; }, get hearts(){ return hearts; }, get tPlay(){ return tPlay; }, get state(){ return state; }, get lanes(){ return lanes; }, get prog(){ return prog; }, get result(){ return result; }, get gifts(){ return giftQueue; }, get collected(){ return collected; }, get clips(){ return Object.keys(CLIPS).filter(k => CLIPS[k]); }, setState, startPhase, reset, finish, onTap, play, setResult: (crashesN, syncRate, time) => { crashes = crashesN; taps = [10, 10]; syncs = Math.round(syncRate * 10); tPlay = time; } };
 })();
 </script>
 </body>

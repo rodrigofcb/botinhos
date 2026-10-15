@@ -7,9 +7,10 @@ Jogo para duas pessoas no mesmo celular. Um boto rosa e um boto caramelo nadam p
 - Celular na horizontal; cada pessoa toca no seu lado para o seu boto nadar para cima.
 - Bater num obstáculo custa um coração (são três por fase, divididos entre os dois).
 - Tocar ao mesmo tempo vale um beijinho; 5 beijinhos devolvem um coração.
-- Três conquistas por fase: nenhuma batida, sincronia de 60% ou mais e tempo dentro do limite.
-- Estrelas contam quantas conquistas saíram na mesma rodada, sempre da esquerda para a direita (duas conquistas quaisquer = duas estrelas). A fase guarda a melhor rodada.
-- As conquistas têm selos próprios (coração, os dois botinhos, relógio), separados das estrelas: ficam coloridos para sempre depois da primeira vez, em qualquer rodada. Na vitória, ✓ marca o que saiu nesta rodada e "Novo!" o que saiu pela primeira vez. Os selos aparecem também no mapa de fases e na abertura da fase.
+- Cada rodada recebe uma nota interna de 0 a 1000, nunca mostrada: sincronia até 400 (proporcional), tempo até 300 (cheio até 80% do limite da fase, zero a partir de 140%) e dano até 300 (menos 100 por batida). Estrelas pelos cortes 400, 650 e 800; a fase guarda a melhor nota.
+- Na vitória, uma barrinha enche com aceleração e freio até onde a nota chegou; cada estrela acende quando a barra passa por ela (a terceira toca o "Yay"). As estrelas ficam em 30%, 60% e 90% da barra; a barra cheia é a nota máxima.
+- Desbloqueio no estilo Overcooked, com trava suave: além de concluir a fase anterior, a fase de número p (contando de 0) pede floor(1,5 × p) estrelas no total (fase 2 pede 1, fase 5 pede 6, fase 10 pede 13). O mapa mostra o pedido de cada fase trancada; na vitória, o botão da próxima fase vira "Faltam N ★" e leva ao mapa.
+- Três conquistas por fase, com selos próprios (coração = nenhuma batida, os dois botinhos = sincronia de 60% ou mais, relógio = tempo dentro do limite), separadas da nota e das estrelas: ficam coloridas para sempre depois da primeira vez, em qualquer rodada. Na vitória, ✓ marca o que saiu nesta rodada e "Novo!" o que saiu pela primeira vez. Os selos aparecem também no mapa de fases e na abertura da fase.
 - A cada 2 estrelas novas (contando a melhor marca de cada fase), um presente é aberto na tela de vitória, na ordem da linha do tempo. As 30 estrelas completam os 15 presentes do álbum.
 - Sons gravados: "Gurl" quando os corações acabam e "Yay" nas 3 estrelas (pasta `sons/`, já cortados e com volume igualado).
 - Cada fase começa com uma contagem 3, 2, 1, que também aparece ao sair da pausa.
